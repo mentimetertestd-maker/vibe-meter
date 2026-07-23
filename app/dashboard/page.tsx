@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import {
+  getSupabaseConfigError,
+  isSupabaseConfigured,
+  supabase,
+} from "@/lib/supabase";
 import type { Room } from "@/lib/types";
 import { ExternalLink, LogOut, Plus, Presentation, Settings } from "lucide-react";
 
@@ -14,17 +18,30 @@ export default function DashboardPage() {
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [email, setEmail] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const configError = getSupabaseConfigError();
 
   const loadRooms = useCallback(async (userId: string) => {
+    if (!isSupabaseConfigured()) {
+      setLoadError(configError);
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("rooms")
       .select("*")
       .eq("owner_id", userId)
       .order("created_at", { ascending: false });
 
-    if (!error && data) setRooms(data as Room[]);
+    if (error) {
+      setLoadError(error.message);
+    } else if (data) {
+      setRooms(data as Room[]);
+    }
     setLoading(false);
-  }, []);
+  }, [configError]);
 
   useEffect(() => {
     async function init() {
@@ -49,10 +66,22 @@ export default function DashboardPage() {
     if (!newTitle.trim()) return;
 
     setCreating(true);
+    setCreateError(null);
+
+    if (!isSupabaseConfigured()) {
+      setCreateError(configError ?? "Supabase 설정이 올바르지 않습니다.");
+      setCreating(false);
+      return;
+    }
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setCreateError("로그인이 필요합니다. 다시 로그인해 주세요.");
+      setCreating(false);
+      return;
+    }
 
     const { data, error } = await supabase
       .from("rooms")
@@ -60,7 +89,13 @@ export default function DashboardPage() {
       .select()
       .single();
 
-    if (!error && data) {
+    if (error) {
+      setCreateError(error.message);
+      setCreating(false);
+      return;
+    }
+
+    if (data) {
       setRooms((prev) => [data as Room, ...prev]);
       setNewTitle("");
     }
@@ -111,26 +146,42 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <form
-          onSubmit={handleCreate}
-          className="mb-10 flex flex-col gap-3 rounded-2xl border border-violet-100 bg-white p-6 shadow-sm sm:flex-row"
-        >
-          <input
-            type="text"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            placeholder="새 방 제목 (예: 2026 팀 워크샵)"
-            className="flex-1 rounded-xl border border-slate-200 px-4 py-3 outline-none ring-violet-400 focus:ring-2"
-          />
-          <button
-            type="submit"
-            disabled={creating || !newTitle.trim()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-3 font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
+        {(configError || loadError) && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {configError ?? loadError}
+          </div>
+        )}
+
+        <div className="mb-10 space-y-3">
+          <form
+            onSubmit={handleCreate}
+            className="flex flex-col gap-3 rounded-2xl border border-violet-100 bg-white p-6 shadow-sm sm:flex-row"
           >
-            <Plus className="h-5 w-5" />
-            {creating ? "생성 중..." : "방 만들기"}
-          </button>
-        </form>
+            <input
+              type="text"
+              value={newTitle}
+              onChange={(e) => {
+                setNewTitle(e.target.value);
+                if (createError) setCreateError(null);
+              }}
+              placeholder="새 방 제목 (예: 2026 팀 워크샵)"
+              className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 outline-none ring-violet-400 focus:ring-2"
+            />
+            <button
+              type="submit"
+              disabled={creating || !newTitle.trim()}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-3 font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
+            >
+              <Plus className="h-5 w-5" />
+              {creating ? "생성 중..." : "방 만들기"}
+            </button>
+          </form>
+          {createError && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+              {createError}
+            </p>
+          )}
+        </div>
 
         {rooms.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
