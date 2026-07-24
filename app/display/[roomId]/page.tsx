@@ -8,6 +8,7 @@ export default function DisplayPage() {
   const params = useParams();
   const roomId = params.roomId as string;
 
+  const [roomTitle, setRoomTitle] = useState(''); // 💡 방 이름 상태 추가
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -21,14 +22,20 @@ export default function DisplayPage() {
     }
   }, [roomId]);
 
+  // 방 이름 및 질문 목록 불러오기
   useEffect(() => {
     if (!roomId) return;
-    const fetchQuestions = async () => {
-      const { data } = await supabase.from('questions').select('*').eq('room_id', roomId).order('sort_order', { ascending: true });
-      if (data) setQuestions(data);
+    const fetchData = async () => {
+      // 1. 방 이름 가져오기
+      const { data: roomData } = await supabase.from('rooms').select('title').eq('id', roomId).single();
+      if (roomData) setRoomTitle(roomData.title);
+
+      // 2. 질문 목록 가져오기
+      const { data: qData } = await supabase.from('questions').select('*').eq('room_id', roomId).order('sort_order', { ascending: true });
+      if (qData) setQuestions(qData);
       setLoading(false);
     };
-    fetchQuestions();
+    fetchData();
   }, [roomId]);
 
   useEffect(() => {
@@ -57,7 +64,7 @@ export default function DisplayPage() {
   const nextSlide = () => { if (currentIndex < questions.length - 1) setCurrentIndex(currentIndex + 1); };
   const prevSlide = () => { if (currentIndex > 0) setCurrentIndex(currentIndex - 1); };
 
-  // 단어 구름용 빈도수 분석
+  // 단어 빈도수 분석
   const getWordCloudData = () => {
     const counts: { [key: string]: number } = {};
     answers.forEach((ans) => {
@@ -68,10 +75,13 @@ export default function DisplayPage() {
   };
 
   const wordList = getWordCloudData();
-  const getRandomPosition = (index: number) => {
-    if (index === 0) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
-    const seed = index * 97;
-    return { top: `${20 + (seed % 60)}%`, left: `${15 + ((seed * 31) % 70)}%`, transform: 'translate(-50%, -50%)' };
+
+  // 💡 더 랜덤하고 골고루 퍼지도록 난수 위치 생성 (단어 글자 길이와 빈도수 고려)
+  const getRandomPosition = (index: number, text: string) => {
+    const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const top = 18 + ((hash * 13 + index * 37) % 64); // 18% ~ 82% 사이 무작위
+    const left = 10 + ((hash * 17 + index * 43) % 75); // 10% ~ 85% 사이 무작위
+    return { top: `${top}%`, left: `${left}%` };
   };
 
   return (
@@ -85,7 +95,14 @@ export default function DisplayPage() {
 
       {/* 상단 헤더 */}
       <div className="p-4 md:p-6 flex justify-between items-center border-b border-slate-800 bg-slate-900 shadow-md z-30">
-        <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">Vibe Meter</div>
+        <div className="flex items-center gap-3">
+          <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">Vibe Meter</div>
+          {roomTitle && (
+            <div className="text-slate-400 text-sm font-semibold bg-slate-800 px-3 py-1 rounded-lg border border-slate-700">
+              📌 {roomTitle}
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-6">
           {joinUrl && (
             <div onClick={() => setShowBigQR(true)} className="flex items-center gap-4 bg-slate-800 border border-slate-700 px-4 py-2 rounded-2xl shadow-lg cursor-pointer hover:bg-slate-700 transition">
@@ -100,9 +117,10 @@ export default function DisplayPage() {
         </div>
       </div>
 
-      {/* 중앙 메인 영역 (질문 타입에 따라 다르게 렌더링!) */}
+      {/* 중앙 메인 영역 */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
         
+        {/* 상단 질문 제목 */}
         <div className="absolute top-6 z-20 max-w-4xl px-4 pointer-events-none">
           <div className="inline-block text-xs font-bold text-violet-300 bg-violet-900/60 border border-violet-700/50 px-4 py-1.5 rounded-full mb-2 shadow-inner">
             {currentQ.type === 'word_cloud' ? '☁️ 단어구름' : currentQ.type === 'multiple_choice' ? '📊 객관식' : '💬 익명 Q&A'}
@@ -110,7 +128,7 @@ export default function DisplayPage() {
           <h1 className="text-2xl md:text-4xl font-bold text-slate-200 drop-shadow-md">{currentQ.title}</h1>
         </div>
 
-        {/* 1. 단어 구름 타입일 때 */}
+        {/* 1. 단어 구름 타입 (중복될수록 점점 더 커지고 무작위 위치로 둥둥 떠다님) */}
         {currentQ.type === 'word_cloud' && (
           <div className="absolute inset-0 pt-28 pb-20 px-10 flex items-center justify-center overflow-hidden">
             {answers.length === 0 ? (
@@ -120,27 +138,35 @@ export default function DisplayPage() {
             ) : (
               <div className="w-full h-full relative">
                 {wordList.map((item, idx) => {
-                  const pos = getRandomPosition(idx);
-                  let fontSize = "text-xl md:text-2xl opacity-70 text-slate-300";
-                  let zIndex = "z-0";
-                  let extraEffect = "";
+                  const pos = getRandomPosition(idx, item.text);
+                  
+                  // 💡 답변이 겹치고 많이 입력될수록 크기가 단계별로 점점 커지도록 설정!
+                  let sizeClass = "text-xl md:text-2xl text-slate-300 opacity-75";
+                  let zIndex = "z-10";
 
-                  if (idx === 0) {
-                    fontSize = "text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-fuchsia-400 to-pink-400 drop-shadow-[0_0_35px_rgba(217,70,239,0.5)]";
+                  if (item.count >= 5) {
+                    sizeClass = "text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-fuchsia-400 to-pink-400 drop-shadow-[0_0_35px_rgba(217,70,239,0.6)] animate-pulse";
+                    zIndex = "z-40";
+                  } else if (item.count >= 3) {
+                    sizeClass = "text-4xl md:text-6xl font-extrabold text-violet-300 drop-shadow-lg";
                     zIndex = "z-30";
-                    extraEffect = "scale-110 animate-pulse";
-                  } else if (idx === 1 || idx === 2) {
-                    fontSize = "text-4xl md:text-5xl font-bold text-violet-200 drop-shadow-md";
+                  } else if (item.count === 2) {
+                    sizeClass = "text-2xl md:text-4xl font-bold text-violet-200";
                     zIndex = "z-20";
-                  } else if (item.count > 1) {
-                    fontSize = "text-2xl md:text-3xl font-semibold text-slate-200 opacity-90";
-                    zIndex = "z-10";
                   }
 
                   return (
-                    <div key={idx} style={{ position: 'absolute', top: pos.top, left: pos.left, transform: pos.transform }} className={`absolute transition-all duration-700 select-none whitespace-nowrap flex items-center gap-2 ${fontSize} ${zIndex} ${extraEffect}`}>
+                    <div 
+                      key={idx} 
+                      style={{ position: 'absolute', top: pos.top, left: pos.left, transform: 'translate(-50%, -50%)' }} 
+                      className={`absolute transition-all duration-700 select-none whitespace-nowrap flex items-center gap-2 ${sizeClass} ${zIndex}`}
+                    >
                       <span>{item.text}</span>
-                      {item.count > 1 && <span className="text-xs md:text-sm bg-violet-600/60 text-violet-100 px-2 py-0.5 rounded-full font-mono opacity-80">{item.count}</span>}
+                      {item.count > 1 && (
+                        <span className="text-xs md:text-sm bg-violet-600/70 text-violet-100 px-2 py-0.5 rounded-full font-mono">
+                          {item.count}
+                        </span>
+                      )}
                     </div>
                   );
                 })}
