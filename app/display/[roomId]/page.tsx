@@ -42,12 +42,10 @@ export default function DisplayPage() {
 
   useEffect(() => {
     if (!currentQ?.id) return;
-
     const fetchAnswers = async () => {
       const { data } = await supabase.from('answers').select('*').eq('question_id', currentQ.id);
       if (data) setAnswers(data);
     };
-
     fetchAnswers();
     const interval = setInterval(fetchAnswers, 1000);
     return () => clearInterval(interval);
@@ -59,33 +57,21 @@ export default function DisplayPage() {
   const nextSlide = () => { if (currentIndex < questions.length - 1) setCurrentIndex(currentIndex + 1); };
   const prevSlide = () => { if (currentIndex > 0) setCurrentIndex(currentIndex - 1); };
 
-  // 단어 빈도수 분석 및 정렬
+  // 단어 구름용 빈도수 분석
   const getWordCloudData = () => {
     const counts: { [key: string]: number } = {};
     answers.forEach((ans) => {
       const word = ans.answer_text.trim();
-      if (word) {
-        counts[word] = (counts[word] || 0) + 1;
-      }
+      if (word) counts[word] = (counts[word] || 0) + 1;
     });
-
-    return Object.entries(counts)
-      .map(([text, count]) => ({ text, count }))
-      .sort((a, b) => b.count - a.count);
+    return Object.entries(counts).map(([text, count]) => ({ text, count })).sort((a, b) => b.count - a.count);
   };
 
   const wordList = getWordCloudData();
-
-  // 무작위 위치를 생성하기 위한 간단한 난수 생성기 (단어별로 고정된 위치 부여)
-  const getRandomPosition = (index: number, total: number) => {
-    // 1등 단어는 무조건 중앙 근처
+  const getRandomPosition = (index: number) => {
     if (index === 0) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
-    
-    // 나머지는 화면 전체에 골고루 퍼지도록 배치 (인덱스 기반 해시)
     const seed = index * 97;
-    const top = 20 + (seed % 60); // 20% ~ 80% 사이
-    const left = 15 + ((seed * 31) % 70); // 15% ~ 85% 사이
-    return { top: `${top}%`, left: `${left}%`, transform: 'translate(-50%, -50%)' };
+    return { top: `${20 + (seed % 60)}%`, left: `${15 + ((seed * 31) % 70)}%`, transform: 'translate(-50%, -50%)' };
   };
 
   return (
@@ -114,70 +100,89 @@ export default function DisplayPage() {
         </div>
       </div>
 
-      {/* 중앙 메인 영역 */}
+      {/* 중앙 메인 영역 (질문 타입에 따라 다르게 렌더링!) */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
         
-        {/* 상단에 작게 고정되는 질문 제목 */}
         <div className="absolute top-6 z-20 max-w-4xl px-4 pointer-events-none">
           <div className="inline-block text-xs font-bold text-violet-300 bg-violet-900/60 border border-violet-700/50 px-4 py-1.5 rounded-full mb-2 shadow-inner">
-            ☁️ 단어구름
+            {currentQ.type === 'word_cloud' ? '☁️ 단어구름' : currentQ.type === 'multiple_choice' ? '📊 객관식' : '💬 익명 Q&A'}
           </div>
           <h1 className="text-2xl md:text-4xl font-bold text-slate-200 drop-shadow-md">{currentQ.title}</h1>
         </div>
 
-        {/* 💡 멘티미터 스타일: 네모 박스 없이 화면 전체에 무작위로 떠다니는 단어 구름 공간 */}
-        <div className="absolute inset-0 pt-28 pb-20 px-10 flex items-center justify-center overflow-hidden">
-          {answers.length === 0 ? (
-            <div className="text-slate-500 text-xl font-medium animate-pulse flex items-center gap-3 z-10">
-              <span className="w-3 h-3 rounded-full bg-violet-500"></span>
-              참가자들의 단어 입력을 기다리고 있습니다...
-              <span className="w-3 h-3 rounded-full bg-violet-500"></span>
-            </div>
-          ) : (
-            <div className="w-full h-full relative">
-              {wordList.map((item, idx) => {
-                const pos = getRandomPosition(idx, wordList.length);
-                
-                // 빈도수에 따른 크기 설정 (1등은 초대형, 나머지는 크기 차등 적용)
-                let fontSize = "text-xl md:text-2xl opacity-70 text-slate-300";
-                let zIndex = "z-0";
-                let extraEffect = "";
+        {/* 1. 단어 구름 타입일 때 */}
+        {currentQ.type === 'word_cloud' && (
+          <div className="absolute inset-0 pt-28 pb-20 px-10 flex items-center justify-center overflow-hidden">
+            {answers.length === 0 ? (
+              <div className="text-slate-500 text-xl font-medium animate-pulse flex items-center gap-3 z-10">
+                <span className="w-3 h-3 rounded-full bg-violet-500"></span>참가자들의 단어 입력을 기다리고 있습니다...<span className="w-3 h-3 rounded-full bg-violet-500"></span>
+              </div>
+            ) : (
+              <div className="w-full h-full relative">
+                {wordList.map((item, idx) => {
+                  const pos = getRandomPosition(idx);
+                  let fontSize = "text-xl md:text-2xl opacity-70 text-slate-300";
+                  let zIndex = "z-0";
+                  let extraEffect = "";
 
-                if (idx === 0) {
-                  // 1등 단어: 중앙에서 가장 크고 화려하게 빛남
-                  fontSize = "text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-fuchsia-400 to-pink-400 drop-shadow-[0_0_35px_rgba(217,70,239,0.5)]";
-                  zIndex = "z-30";
-                  extraEffect = "scale-110 animate-pulse";
-                } else if (idx === 1 || idx === 2) {
-                  // 2~3등 단어: 큼직하고 선명함
-                  fontSize = "text-4xl md:text-5xl font-bold text-violet-200 drop-shadow-md";
-                  zIndex = "z-20";
-                } else if (item.count > 1) {
-                  // 복수 선택된 단어
-                  fontSize = "text-2xl md:text-3xl font-semibold text-slate-200 opacity-90";
-                  zIndex = "z-10";
-                }
+                  if (idx === 0) {
+                    fontSize = "text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-fuchsia-400 to-pink-400 drop-shadow-[0_0_35px_rgba(217,70,239,0.5)]";
+                    zIndex = "z-30";
+                    extraEffect = "scale-110 animate-pulse";
+                  } else if (idx === 1 || idx === 2) {
+                    fontSize = "text-4xl md:text-5xl font-bold text-violet-200 drop-shadow-md";
+                    zIndex = "z-20";
+                  } else if (item.count > 1) {
+                    fontSize = "text-2xl md:text-3xl font-semibold text-slate-200 opacity-90";
+                    zIndex = "z-10";
+                  }
 
-                return (
-                  <div
-                    key={idx}
-                    style={{ position: 'absolute', top: pos.top, left: pos.left, transform: pos.transform }}
-                    className={`absolute transition-all duration-700 select-none whitespace-nowrap flex items-center gap-2 ${fontSize} ${zIndex} ${extraEffect}`}
-                  >
-                    <span>{item.text}</span>
-                    {item.count > 1 && (
-                      <span className="text-xs md:text-sm bg-violet-600/60 text-violet-100 px-2 py-0.5 rounded-full font-mono opacity-80">
-                        {item.count}
-                      </span>
-                    )}
+                  return (
+                    <div key={idx} style={{ position: 'absolute', top: pos.top, left: pos.left, transform: pos.transform }} className={`absolute transition-all duration-700 select-none whitespace-nowrap flex items-center gap-2 ${fontSize} ${zIndex} ${extraEffect}`}>
+                      <span>{item.text}</span>
+                      {item.count > 1 && <span className="text-xs md:text-sm bg-violet-600/60 text-violet-100 px-2 py-0.5 rounded-full font-mono opacity-80">{item.count}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 2. 객관식 타입일 때 */}
+        {currentQ.type === 'multiple_choice' && (
+          <div className="w-full max-w-2xl mt-16 space-y-4 z-10">
+            {currentQ.options?.map((opt: string, idx: number) => {
+              const count = answers.filter(a => a.answer_text === opt).length;
+              const percent = answers.length > 0 ? Math.round((count / answers.length) * 100) : 0;
+              return (
+                <div key={idx} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl relative overflow-hidden text-left shadow-lg">
+                  <div className="absolute left-0 top-0 bottom-0 bg-violet-600/30 transition-all duration-500" style={{ width: `${percent}%` }}></div>
+                  <div className="relative z-10 flex justify-between font-bold text-xl">
+                    <span>{opt}</span>
+                    <span className="text-violet-300">{count}명 ({percent}%)</span>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
-        {/* 하단 참여 응답 수 안내 */}
+        {/* 3. 익명 Q&A 타입일 때 */}
+        {currentQ.type === 'qna' && (
+          <div className="w-full max-w-4xl mt-16 max-h-[450px] overflow-y-auto flex flex-wrap gap-4 justify-center z-10 p-2">
+            {answers.length === 0 ? (
+              <p className="text-slate-500 text-lg">아직 제출된 답변이 없습니다.</p>
+            ) : (
+              answers.map((ans, idx) => (
+                <div key={idx} className="bg-slate-900 border border-violet-800/60 px-6 py-4 rounded-2xl text-xl font-medium shadow-md">
+                  {ans.answer_text}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
         <div className="absolute bottom-6 z-20 text-slate-400 text-sm font-medium bg-slate-900/80 px-4 py-1.5 rounded-full border border-slate-800">
           총 참여 응답 수: <span className="text-violet-400 font-bold">{answers.length}</span>개
         </div>
