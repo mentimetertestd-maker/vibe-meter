@@ -70,7 +70,6 @@ export default function AdminPage() {
     const newOptions = [...options]; newOptions[index] = value; setOptions(newOptions);
   };
 
-  // 💡 전광판 열기 (주소 경로 오류 없이 정확하게 새 창으로 띄우기)
   const handleOpenDisplay = () => {
     if (!selectedRoomId) return alert('방을 먼저 선택해주세요!');
     window.open(`/display/${selectedRoomId}`, '_blank');
@@ -78,12 +77,26 @@ export default function AdminPage() {
 
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
+      {/* 왼쪽 사이드바 */}
       <div className="w-80 bg-white border-r border-slate-200 p-6 flex flex-col">
         <h2 className="text-xl font-bold mb-6 text-slate-800">워사커 방 관리</h2>
+        
+        {/* 💡 생성 버튼 디자인 깔끔하게 수정된 영역 */}
         <div className="flex gap-2 mb-6">
-          <input className="border border-slate-300 p-2 flex-1 rounded-lg focus:ring-2 focus:ring-violet-500" placeholder="새 방 이름..." value={newRoomTitle} onChange={(e) => setNewRoomTitle(e.target.value)} />
-          <button onClick={handleCreateRoom} className="bg-violet-600 text-white px-4 rounded-lg font-medium">생성</button>
+          <input 
+            className="border border-slate-300 p-2.5 flex-1 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm" 
+            placeholder="새 방 이름..." 
+            value={newRoomTitle} 
+            onChange={(e) => setNewRoomTitle(e.target.value)} 
+          />
+          <button 
+            onClick={handleCreateRoom} 
+            className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm shrink-0 transition shadow-sm"
+          >
+            생성
+          </button>
         </div>
+
         <ul className="space-y-2 flex-1 overflow-y-auto">
           {rooms.map(room => (
             <li key={room.id} className={`flex justify-between items-center p-3 rounded-xl cursor-pointer ${selectedRoomId === room.id ? 'bg-violet-100 border-violet-400 font-medium' : 'bg-slate-50 hover:bg-slate-100 border-slate-200'} border`} onClick={() => setSelectedRoomId(room.id)}>
@@ -94,6 +107,7 @@ export default function AdminPage() {
         </ul>
       </div>
 
+      {/* 오른쪽 질문 관리 영역 */}
       <div className="flex-1 p-8 bg-slate-50 overflow-y-auto">
         {!selectedRoomId ? (
           <div className="flex items-center justify-center h-full text-slate-400 font-medium">👈 왼쪽에서 방을 선택해주세요.</div>
