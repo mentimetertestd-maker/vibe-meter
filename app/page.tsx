@@ -77,21 +77,21 @@ export default function AdminPage() {
 
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* 왼쪽 사이드바 */}
-      <div className="w-80 bg-white border-r border-slate-200 p-6 flex flex-col">
+      {/* 왼쪽 사이드바 (너비를 조금 더 넉넉하게 96으로 조정하여 버튼이 안 깨지게 수정) */}
+      <div className="w-96 bg-white border-r border-slate-200 p-6 flex flex-col">
         <h2 className="text-xl font-bold mb-6 text-slate-800">워사커 방 관리</h2>
         
-        {/* 💡 생성 버튼 디자인 깔끔하게 수정된 영역 */}
-        <div className="flex gap-2 mb-6">
+        {/* 방 생성 입력창 & 생성 버튼 */}
+        <div className="flex gap-2 mb-6 items-center">
           <input 
-            className="border border-slate-300 p-2.5 flex-1 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm" 
+            className="border border-slate-300 p-3 flex-1 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm" 
             placeholder="새 방 이름..." 
             value={newRoomTitle} 
             onChange={(e) => setNewRoomTitle(e.target.value)} 
           />
           <button 
             onClick={handleCreateRoom} 
-            className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm shrink-0 transition shadow-sm"
+            className="bg-violet-600 hover:bg-violet-700 text-white px-5 py-3 rounded-xl font-bold text-sm shrink-0 whitespace-nowrap transition shadow-sm"
           >
             생성
           </button>
