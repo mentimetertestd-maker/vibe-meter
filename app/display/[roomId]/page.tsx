@@ -75,13 +75,12 @@ export default function DisplayPage() {
 
   const wordList = getWordCloudData();
 
-  // 💡 위치 배치 로직: 인덱스 0(1등 단어)은 무조건 정중앙, 나머지는 주변으로 무작위 배치
+  // 위치 배치 로직: 인덱스 0(1등 단어)은 무조건 정중앙, 나머지는 주변으로 무작위 배치
   const getPosition = (index: number, text: string) => {
     if (index === 0) {
-      return { top: '50%', left: '50%' }; // 1등은 무조건 정중앙!
+      return { top: '50%', left: '50%' };
     }
     const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    // 중앙(50%)을 피해서 바깥쪽으로 예쁘게 분산되도록 계산
     const top = 20 + ((hash * 13 + index * 37) % 60); 
     const left = 15 + ((hash * 17 + index * 43) % 70); 
     return { top: `${top}%`, left: `${left}%` };
@@ -99,7 +98,10 @@ export default function DisplayPage() {
       {/* 상단 헤더 */}
       <div className={`p-5 md:p-6 flex justify-between items-center border-b z-30 transition-colors ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
         <div className="flex items-center gap-4">
-          <div className="text-2xl md:text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-fuchsia-600">Isaiah6tyOne</div>
+          {/* 💡 담백하고 깔끔하게 바뀐 로고 텍스트 (다크모드: 흰색 / 라이트모드: 검은색) */}
+          <div className={`text-2xl md:text-3xl font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            Isaiah6tyOne
+          </div>
           {room?.title && (
             <div className={`text-sm font-bold px-3.5 py-1.5 rounded-xl border ${isLight ? 'bg-white border-slate-200 text-slate-700 shadow-sm' : 'bg-slate-800 border-slate-700 text-slate-200'}`}>
               {room.title}
@@ -132,7 +134,7 @@ export default function DisplayPage() {
           <h1 className={`text-3xl md:text-5xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>{currentQ.title}</h1>
         </div>
 
-        {/* 1. 단어 구름 타입 (1등 단어 중앙 배치) */}
+        {/* 1. 단어 구름 타입 */}
         {currentQ.type === 'word_cloud' && (
           <div className="absolute inset-0 pt-28 pb-20 px-10 flex items-center justify-center overflow-hidden">
             {answers.length === 0 ? (
@@ -148,14 +150,13 @@ export default function DisplayPage() {
                   let zIndex = "z-10";
 
                   if (idx === 0) {
-                    // 💡 가장 많이 나온 1등 단어는 무조건 정중앙에서 가장 거대하게 강조!
-                    sizeClass = "text-7xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-500 drop-shadow-2xl animate-pulse scale-110";
+                    sizeClass = "text-7xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 drop-shadow-2xl animate-pulse scale-110";
                     zIndex = "z-50";
                   } else if (item.count >= 3) {
-                    sizeClass = "text-4xl md:text-6xl font-extrabold text-violet-600";
+                    sizeClass = "text-4xl md:text-6xl font-extrabold text-violet-500";
                     zIndex = "z-30";
                   } else if (item.count === 2) {
-                    sizeClass = "text-2xl md:text-4xl font-bold text-violet-500";
+                    sizeClass = "text-2xl md:text-4xl font-bold text-violet-400";
                     zIndex = "z-20";
                   }
 
@@ -190,7 +191,7 @@ export default function DisplayPage() {
                   <div className={`absolute left-0 top-0 bottom-0 transition-all duration-500 ${isLight ? 'bg-violet-100' : 'bg-violet-600/30'}`} style={{ width: `${percent}%` }}></div>
                   <div className="relative z-10 flex justify-between font-bold text-xl">
                     <span>{opt}</span>
-                    <span className="text-violet-600">{count}명 ({percent}%)</span>
+                    <span className="text-violet-500">{count}명 ({percent}%)</span>
                   </div>
                 </div>
               );
@@ -214,7 +215,7 @@ export default function DisplayPage() {
         )}
 
         <div className={`absolute bottom-6 z-20 text-xs font-bold px-4 py-2 rounded-full border shadow-sm ${isLight ? 'bg-white border-slate-200 text-slate-500' : 'bg-slate-900 border-slate-800 text-slate-400'}`}>
-          총 참여 응답: <span className="text-violet-600 font-black">{answers.length}</span>개
+          총 참여 응답: <span className="text-violet-500 font-black">{answers.length}</span>개
         </div>
       </div>
 
