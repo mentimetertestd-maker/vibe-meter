@@ -8,7 +8,7 @@ export default function DisplayPage() {
   const params = useParams();
   const roomId = params.roomId as string;
 
-  const [roomTitle, setRoomTitle] = useState(''); // 💡 방 이름 상태 추가
+  const [room, setRoom] = useState<any>(null);
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -22,15 +22,12 @@ export default function DisplayPage() {
     }
   }, [roomId]);
 
-  // 방 이름 및 질문 목록 불러오기
   useEffect(() => {
     if (!roomId) return;
     const fetchData = async () => {
-      // 1. 방 이름 가져오기
-      const { data: roomData } = await supabase.from('rooms').select('title').eq('id', roomId).single();
-      if (roomData) setRoomTitle(roomData.title);
+      const { data: roomData } = await supabase.from('rooms').select('*').eq('id', roomId).single();
+      if (roomData) setRoom(roomData);
 
-      // 2. 질문 목록 가져오기
       const { data: qData } = await supabase.from('questions').select('*').eq('room_id', roomId).order('sort_order', { ascending: true });
       if (qData) setQuestions(qData);
       setLoading(false);
@@ -58,11 +55,13 @@ export default function DisplayPage() {
     return () => clearInterval(interval);
   }, [currentQ?.id]);
 
-  if (loading) return <div className="flex h-screen items-center justify-center bg-slate-950 text-white">로딩중...</div>;
-  if (questions.length === 0) return <div className="flex h-screen items-center justify-center bg-slate-950 text-white">이 방에는 아직 등록된 질문이 없습니다.</div>;
+  if (loading) return <div className="flex h-screen items-center justify-center bg-slate-950 text-white text-xl">로딩중...</div>;
+  if (questions.length === 0) return <div className="flex h-screen items-center justify-center bg-slate-950 text-white text-xl">등록된 질문이 없습니다.</div>;
 
   const nextSlide = () => { if (currentIndex < questions.length - 1) setCurrentIndex(currentIndex + 1); };
   const prevSlide = () => { if (currentIndex > 0) setCurrentIndex(currentIndex - 1); };
+
+  const isLight = room?.theme === 'light';
 
   // 단어 빈도수 분석
   const getWordCloudData = () => {
@@ -76,16 +75,15 @@ export default function DisplayPage() {
 
   const wordList = getWordCloudData();
 
-  // 💡 더 랜덤하고 골고루 퍼지도록 난수 위치 생성 (단어 글자 길이와 빈도수 고려)
   const getRandomPosition = (index: number, text: string) => {
     const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const top = 18 + ((hash * 13 + index * 37) % 64); // 18% ~ 82% 사이 무작위
-    const left = 10 + ((hash * 17 + index * 43) % 75); // 10% ~ 85% 사이 무작위
+    const top = 22 + ((hash * 13 + index * 37) % 58);
+    const left = 12 + ((hash * 17 + index * 43) % 76);
     return { top: `${top}%`, left: `${left}%` };
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-950 text-white font-sans overflow-hidden">
+    <div className={`flex flex-col h-screen font-sans overflow-hidden transition-colors duration-500 ${isLight ? 'bg-white text-slate-900' : 'bg-slate-950 text-white'}`}>
       {showBigQR && (
         <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center cursor-pointer backdrop-blur-sm" onClick={() => setShowBigQR(false)}>
           <img src={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(joinUrl)}`} alt="큰 QR코드" className="w-80 h-80 md:w-96 md:h-96 rounded-3xl bg-white p-4 shadow-2xl" />
@@ -94,64 +92,63 @@ export default function DisplayPage() {
       )}
 
       {/* 상단 헤더 */}
-      <div className="p-4 md:p-6 flex justify-between items-center border-b border-slate-800 bg-slate-900 shadow-md z-30">
-        <div className="flex items-center gap-3">
-          <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">Vibe Meter</div>
-          {roomTitle && (
-            <div className="text-slate-400 text-sm font-semibold bg-slate-800 px-3 py-1 rounded-lg border border-slate-700">
-              📌 {roomTitle}
+      <div className={`p-5 md:p-6 flex justify-between items-center border-b z-30 transition-colors ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
+        <div className="flex items-center gap-4">
+          <div className="text-2xl md:text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-fuchsia-600">Isaiah6tyOne</div>
+          {room?.title && (
+            <div className={`text-sm font-bold px-3.5 py-1.5 rounded-xl border ${isLight ? 'bg-white border-slate-200 text-slate-700 shadow-sm' : 'bg-slate-800 border-slate-700 text-slate-200'}`}>
+              {room.title}
             </div>
           )}
         </div>
         <div className="flex items-center gap-6">
           {joinUrl && (
-            <div onClick={() => setShowBigQR(true)} className="flex items-center gap-4 bg-slate-800 border border-slate-700 px-4 py-2 rounded-2xl shadow-lg cursor-pointer hover:bg-slate-700 transition">
+            <div onClick={() => setShowBigQR(true)} className={`flex items-center gap-4 px-4 py-2 rounded-2xl shadow-sm cursor-pointer border transition ${isLight ? 'bg-white border-slate-200 hover:bg-slate-100' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
               <div className="text-right hidden md:block">
-                <div className="text-xs text-slate-400 mb-1">스마트폰 카메라로 참여하기 (클릭시 확대)</div>
-                <div className="text-sm font-bold text-violet-300">{joinUrl.replace(/^https?:\/\//, '')}</div>
+                <div className="text-[11px] text-slate-400 mb-0.5 font-medium">스마트폰으로 참여하기</div>
+                <div className="text-xs font-bold text-violet-600">{joinUrl.replace(/^https?:\/\//, '')}</div>
               </div>
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`} className="w-14 h-14 rounded-lg bg-white p-1" />
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`} className="w-12 h-12 rounded-lg bg-white p-1" />
             </div>
           )}
-          <div className="text-slate-400 font-bold bg-slate-800 px-5 py-2.5 rounded-full">{currentIndex + 1} / {questions.length}</div>
+          <div className={`font-bold px-5 py-2.5 rounded-full border text-sm ${isLight ? 'bg-white border-slate-200 text-slate-700 shadow-sm' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
+            {currentIndex + 1} / {questions.length}
+          </div>
         </div>
       </div>
 
-      {/* 중앙 메인 영역 */}
+      {/* 중앙 메인 콘텐츠 */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
         
-        {/* 상단 질문 제목 */}
         <div className="absolute top-6 z-20 max-w-4xl px-4 pointer-events-none">
-          <div className="inline-block text-xs font-bold text-violet-300 bg-violet-900/60 border border-violet-700/50 px-4 py-1.5 rounded-full mb-2 shadow-inner">
+          <div className={`inline-block text-xs font-extrabold px-4 py-1.5 rounded-full mb-3 shadow-sm ${isLight ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-violet-900/60 text-violet-300 border border-violet-700/50'}`}>
             {currentQ.type === 'word_cloud' ? '☁️ 단어구름' : currentQ.type === 'multiple_choice' ? '📊 객관식' : '💬 익명 Q&A'}
           </div>
-          <h1 className="text-2xl md:text-4xl font-bold text-slate-200 drop-shadow-md">{currentQ.title}</h1>
+          <h1 className={`text-3xl md:text-5xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>{currentQ.title}</h1>
         </div>
 
-        {/* 1. 단어 구름 타입 (중복될수록 점점 더 커지고 무작위 위치로 둥둥 떠다님) */}
+        {/* 1. 단어 구름 타입 */}
         {currentQ.type === 'word_cloud' && (
           <div className="absolute inset-0 pt-28 pb-20 px-10 flex items-center justify-center overflow-hidden">
             {answers.length === 0 ? (
-              <div className="text-slate-500 text-xl font-medium animate-pulse flex items-center gap-3 z-10">
-                <span className="w-3 h-3 rounded-full bg-violet-500"></span>참가자들의 단어 입력을 기다리고 있습니다...<span className="w-3 h-3 rounded-full bg-violet-500"></span>
+              <div className="text-slate-400 text-xl font-medium animate-pulse flex items-center gap-3 z-10">
+                <span className="w-3 h-3 rounded-full bg-violet-600"></span>참가자들의 답변을 기다리고 있습니다...<span className="w-3 h-3 rounded-full bg-violet-600"></span>
               </div>
             ) : (
               <div className="w-full h-full relative">
                 {wordList.map((item, idx) => {
                   const pos = getRandomPosition(idx, item.text);
-                  
-                  // 💡 답변이 겹치고 많이 입력될수록 크기가 단계별로 점점 커지도록 설정!
-                  let sizeClass = "text-xl md:text-2xl text-slate-300 opacity-75";
+                  let sizeClass = isLight ? "text-xl md:text-2xl text-slate-600 font-semibold" : "text-xl md:text-2xl text-slate-300 opacity-80 font-semibold";
                   let zIndex = "z-10";
 
                   if (item.count >= 5) {
-                    sizeClass = "text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-300 via-fuchsia-400 to-pink-400 drop-shadow-[0_0_35px_rgba(217,70,239,0.6)] animate-pulse";
+                    sizeClass = "text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-fuchsia-600 drop-shadow-xl animate-pulse";
                     zIndex = "z-40";
                   } else if (item.count >= 3) {
-                    sizeClass = "text-4xl md:text-6xl font-extrabold text-violet-300 drop-shadow-lg";
+                    sizeClass = "text-4xl md:text-6xl font-extrabold text-violet-600";
                     zIndex = "z-30";
                   } else if (item.count === 2) {
-                    sizeClass = "text-2xl md:text-4xl font-bold text-violet-200";
+                    sizeClass = "text-2xl md:text-4xl font-bold text-violet-500";
                     zIndex = "z-20";
                   }
 
@@ -163,7 +160,7 @@ export default function DisplayPage() {
                     >
                       <span>{item.text}</span>
                       {item.count > 1 && (
-                        <span className="text-xs md:text-sm bg-violet-600/70 text-violet-100 px-2 py-0.5 rounded-full font-mono">
+                        <span className={`text-xs md:text-sm px-2 py-0.5 rounded-full font-mono font-bold ${isLight ? 'bg-violet-100 text-violet-700' : 'bg-violet-900 text-violet-200'}`}>
                           {item.count}
                         </span>
                       )}
@@ -175,18 +172,18 @@ export default function DisplayPage() {
           </div>
         )}
 
-        {/* 2. 객관식 타입일 때 */}
+        {/* 2. 객관식 타입 */}
         {currentQ.type === 'multiple_choice' && (
           <div className="w-full max-w-2xl mt-16 space-y-4 z-10">
             {currentQ.options?.map((opt: string, idx: number) => {
               const count = answers.filter(a => a.answer_text === opt).length;
               const percent = answers.length > 0 ? Math.round((count / answers.length) * 100) : 0;
               return (
-                <div key={idx} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl relative overflow-hidden text-left shadow-lg">
-                  <div className="absolute left-0 top-0 bottom-0 bg-violet-600/30 transition-all duration-500" style={{ width: `${percent}%` }}></div>
+                <div key={idx} className={`border p-6 rounded-2xl relative overflow-hidden text-left shadow-sm transition ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
+                  <div className={`absolute left-0 top-0 bottom-0 transition-all duration-500 ${isLight ? 'bg-violet-100' : 'bg-violet-600/30'}`} style={{ width: `${percent}%` }}></div>
                   <div className="relative z-10 flex justify-between font-bold text-xl">
                     <span>{opt}</span>
-                    <span className="text-violet-300">{count}명 ({percent}%)</span>
+                    <span className="text-violet-600">{count}명 ({percent}%)</span>
                   </div>
                 </div>
               );
@@ -194,14 +191,14 @@ export default function DisplayPage() {
           </div>
         )}
 
-        {/* 3. 익명 Q&A 타입일 때 */}
+        {/* 3. Q&A 타입 */}
         {currentQ.type === 'qna' && (
           <div className="w-full max-w-4xl mt-16 max-h-[450px] overflow-y-auto flex flex-wrap gap-4 justify-center z-10 p-2">
             {answers.length === 0 ? (
-              <p className="text-slate-500 text-lg">아직 제출된 답변이 없습니다.</p>
+              <p className="text-slate-400 text-lg">아직 제출된 답변이 없습니다.</p>
             ) : (
               answers.map((ans, idx) => (
-                <div key={idx} className="bg-slate-900 border border-violet-800/60 px-6 py-4 rounded-2xl text-xl font-medium shadow-md">
+                <div key={idx} className={`border px-6 py-4 rounded-2xl text-xl font-semibold shadow-sm ${isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900 border-slate-800 text-slate-100'}`}>
                   {ans.answer_text}
                 </div>
               ))
@@ -209,15 +206,15 @@ export default function DisplayPage() {
           </div>
         )}
 
-        <div className="absolute bottom-6 z-20 text-slate-400 text-sm font-medium bg-slate-900/80 px-4 py-1.5 rounded-full border border-slate-800">
-          총 참여 응답 수: <span className="text-violet-400 font-bold">{answers.length}</span>개
+        <div className={`absolute bottom-6 z-20 text-xs font-bold px-4 py-2 rounded-full border shadow-sm ${isLight ? 'bg-white border-slate-200 text-slate-500' : 'bg-slate-900 border-slate-800 text-slate-400'}`}>
+          총 참여 응답: <span className="text-violet-600 font-black">{answers.length}</span>개
         </div>
       </div>
 
-      {/* 하단 슬라이드 조종 버튼 */}
-      <div className="p-6 flex justify-center gap-6 bg-slate-900 border-t border-slate-800 relative z-30">
-        <button onClick={prevSlide} disabled={currentIndex === 0} className="px-8 py-4 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 rounded-2xl font-bold transition text-lg flex items-center gap-2 border border-slate-700">◀ 이전</button>
-        <button onClick={nextSlide} disabled={currentIndex === questions.length - 1} className="px-8 py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-30 rounded-2xl font-bold transition text-lg flex items-center gap-2">다음 ▶</button>
+      {/* 하단 슬라이드 조종 */}
+      <div className={`p-5 flex justify-center gap-6 border-t z-30 transition-colors ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
+        <button onClick={prevSlide} disabled={currentIndex === 0} className={`px-8 py-3.5 rounded-2xl font-bold transition text-base border disabled:opacity-30 ${isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100' : 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700'}`}>◀ 이전</button>
+        <button onClick={nextSlide} disabled={currentIndex === questions.length - 1} className="px-8 py-3.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-30 rounded-2xl font-bold transition text-base text-white shadow-md shadow-violet-200">다음 ▶</button>
       </div>
     </div>
   );
