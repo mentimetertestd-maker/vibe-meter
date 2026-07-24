@@ -63,7 +63,7 @@ export default function DisplayPage() {
 
   const isLight = room?.theme === 'light';
 
-  // 단어 빈도수 분석
+  // 단어 빈도수 분석 및 정렬 (많이 나온 순서대로)
   const getWordCloudData = () => {
     const counts: { [key: string]: number } = {};
     answers.forEach((ans) => {
@@ -75,10 +75,15 @@ export default function DisplayPage() {
 
   const wordList = getWordCloudData();
 
-  const getRandomPosition = (index: number, text: string) => {
+  // 💡 위치 배치 로직: 인덱스 0(1등 단어)은 무조건 정중앙, 나머지는 주변으로 무작위 배치
+  const getPosition = (index: number, text: string) => {
+    if (index === 0) {
+      return { top: '50%', left: '50%' }; // 1등은 무조건 정중앙!
+    }
     const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const top = 22 + ((hash * 13 + index * 37) % 58);
-    const left = 12 + ((hash * 17 + index * 43) % 76);
+    // 중앙(50%)을 피해서 바깥쪽으로 예쁘게 분산되도록 계산
+    const top = 20 + ((hash * 13 + index * 37) % 60); 
+    const left = 15 + ((hash * 17 + index * 43) % 70); 
     return { top: `${top}%`, left: `${left}%` };
   };
 
@@ -127,7 +132,7 @@ export default function DisplayPage() {
           <h1 className={`text-3xl md:text-5xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>{currentQ.title}</h1>
         </div>
 
-        {/* 1. 단어 구름 타입 */}
+        {/* 1. 단어 구름 타입 (1등 단어 중앙 배치) */}
         {currentQ.type === 'word_cloud' && (
           <div className="absolute inset-0 pt-28 pb-20 px-10 flex items-center justify-center overflow-hidden">
             {answers.length === 0 ? (
@@ -137,13 +142,15 @@ export default function DisplayPage() {
             ) : (
               <div className="w-full h-full relative">
                 {wordList.map((item, idx) => {
-                  const pos = getRandomPosition(idx, item.text);
-                  let sizeClass = isLight ? "text-xl md:text-2xl text-slate-600 font-semibold" : "text-xl md:text-2xl text-slate-300 opacity-80 font-semibold";
+                  const pos = getPosition(idx, item.text);
+                  
+                  let sizeClass = isLight ? "text-xl md:text-2xl text-slate-500 font-semibold" : "text-xl md:text-2xl text-slate-400 font-semibold";
                   let zIndex = "z-10";
 
-                  if (item.count >= 5) {
-                    sizeClass = "text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-fuchsia-600 drop-shadow-xl animate-pulse";
-                    zIndex = "z-40";
+                  if (idx === 0) {
+                    // 💡 가장 많이 나온 1등 단어는 무조건 정중앙에서 가장 거대하게 강조!
+                    sizeClass = "text-7xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-500 drop-shadow-2xl animate-pulse scale-110";
+                    zIndex = "z-50";
                   } else if (item.count >= 3) {
                     sizeClass = "text-4xl md:text-6xl font-extrabold text-violet-600";
                     zIndex = "z-30";
