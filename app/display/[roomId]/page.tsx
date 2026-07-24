@@ -13,7 +13,7 @@ export default function AdminPage() {
   const [questionType, setQuestionType] = useState('word_cloud');
   const [options, setOptions] = useState(['', '']);
   
-  const [editingId, setEditingId] = useState<string | null>(null); // 💡 수정 모드 상태 추가
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => { fetchRooms(); }, []);
   useEffect(() => { if (selectedRoomId) fetchQuestions(selectedRoomId); }, [selectedRoomId]);
@@ -41,7 +41,6 @@ export default function AdminPage() {
     fetchRooms();
   };
 
-  // 💡 저장 버튼 (새로 추가 OR 기존 질문 수정)
   const handleSaveQuestion = async () => {
     if (!selectedRoomId) return alert('방을 먼저 선택해주세요!');
     if (!newQuestionTitle.trim()) return alert('질문을 입력해주세요!');
@@ -49,11 +48,9 @@ export default function AdminPage() {
     const filteredOptions = questionType === 'multiple_choice' ? options.filter(opt => opt.trim() !== '') : [];
     
     if (editingId) {
-      // 질문 수정 로직
       await supabase.from('questions').update({ title: newQuestionTitle, type: questionType, options: filteredOptions }).eq('id', editingId);
       alert('수정되었습니다!');
     } else {
-      // 새 질문 추가 로직
       const nextOrder = questions.length + 1;
       await supabase.from('questions').insert([{ room_id: selectedRoomId, title: newQuestionTitle, sort_order: nextOrder, type: questionType, options: filteredOptions }]);
     }
@@ -62,7 +59,6 @@ export default function AdminPage() {
     fetchQuestions(selectedRoomId);
   };
 
-  // 💡 수정 버튼 클릭 시 입력창에 정보 불러오기
   const handleEditClick = (q: any) => {
     setEditingId(q.id);
     setNewQuestionTitle(q.title);
@@ -82,7 +78,6 @@ export default function AdminPage() {
 
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* 왼쪽 사이드바 (이전과 동일) */}
       <div className="w-80 bg-white border-r border-slate-200 p-6 flex flex-col">
         <h2 className="text-xl font-bold mb-6 text-slate-800">워사커 방 관리</h2>
         <div className="flex gap-2 mb-6">
@@ -99,7 +94,6 @@ export default function AdminPage() {
         </ul>
       </div>
 
-      {/* 오른쪽 질문 관리 */}
       <div className="flex-1 p-8 bg-slate-50 overflow-y-auto">
         {!selectedRoomId ? (
           <div className="flex items-center justify-center h-full text-slate-400 font-medium">👈 왼쪽에서 방을 선택해주세요.</div>
@@ -110,7 +104,6 @@ export default function AdminPage() {
               <button onClick={handleOpenDisplay} className="bg-violet-600 hover:bg-violet-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-md flex items-center gap-2">전광판 열기 🚀</button>
             </div>
 
-            {/* 질문 추가/수정 박스 */}
             <div className={`p-6 rounded-2xl border shadow-sm mb-8 transition ${editingId ? 'bg-violet-50 border-violet-300' : 'bg-white border-slate-200'}`}>
               <div className="flex justify-between items-center mb-4">
                 <h3 className={`font-bold ${editingId ? 'text-violet-700' : 'text-slate-700'}`}>{editingId ? '✏️ 질문 수정 모드' : '새 슬라이드 추가'}</h3>
@@ -139,7 +132,6 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {/* 질문 목록 리스트 */}
             <div className="space-y-4">
               {questions.map((q) => (
                 <div key={q.id} className={`p-5 bg-white border rounded-2xl flex items-start gap-4 shadow-sm transition ${editingId === q.id ? 'border-violet-500 ring-2 ring-violet-200' : 'border-slate-200'}`}>
@@ -150,7 +142,6 @@ export default function AdminPage() {
                       {q.type === 'word_cloud' ? '☁️ 단어구름' : q.type === 'multiple_choice' ? '📊 객관식' : '💬 익명 Q&A'}
                     </div>
                   </div>
-                  {/* 💡 수정 버튼 추가됨 */}
                   <button onClick={() => handleEditClick(q)} className="text-violet-600 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg text-sm font-medium transition">
                     수정
                   </button>
