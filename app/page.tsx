@@ -9,11 +9,15 @@ export default function AdminPage() {
   const [questions, setQuestions] = useState<any[]>([]);
   
   const [newRoomTitle, setNewRoomTitle] = useState('');
-  const [roomTheme, setRoomTheme] = useState<'dark' | 'light'>('dark'); // 💡 테마 선택 상태 추가
+  const [roomTheme, setRoomTheme] = useState<'dark' | 'light'>('dark');
   const [newQuestionTitle, setNewQuestionTitle] = useState('');
   const [questionType, setQuestionType] = useState('word_cloud');
   const [options, setOptions] = useState(['', '']);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // 💡 [옵션 A] 결과 요약 모달 관련 상태
+  const [isResultModalOpen, setIsResultModalOpen] = useState(false);
+  const [resultsData, setResultsData] = useState<any[]>([]);
 
   useEffect(() => { fetchRooms(); }, []);
   useEffect(() => { if (selectedRoomId) fetchQuestions(selectedRoomId); }, [selectedRoomId]);
@@ -30,7 +34,6 @@ export default function AdminPage() {
 
   const handleCreateRoom = async () => {
     if (!newRoomTitle.trim()) return alert('방 이름을 입력해주세요!');
-    // 테마 정보도 함께 저장
     await supabase.from('rooms').insert([{ title: newRoomTitle, theme: roomTheme }]);
     setNewRoomTitle(''); fetchRooms();
   };
@@ -77,13 +80,118 @@ export default function AdminPage() {
     window.open(`/display/${selectedRoomId}`, '_blank');
   };
 
+  // 💡 결과 데이터 불러오기 로직
+  const handleOpenResults = async () => {
+    if (!selectedRoomId) return alert('방을 선택해주세요!');
+    
+    // 1. 해당 방의 모든 질문 가져오기
+    const { data: qData } = await supabase.from('questions').select('*').eq('room_id', selectedRoomId).order('sort_order', { ascending: true });
+    if (!qData || qData.length === 0) return alert('등록된 질문이 없습니다.');
+
+    // 2. 해당 질문들에 달린 모든 답변 가져오기
+    const qIds = qData.map(q => q.id);
+    const { data: aData } = await supabase.from('answers').select('*').in('question_id', qIds);
+
+    // 3. 질문별로 답변 데이터 묶어주기
+    const grouped = qData.map(q => {
+      const answersForQ = aData?.filter(a => a.question_id === q.id) || [];
+      return { ...q, answers: answersForQ };
+    });
+
+    setResultsData(grouped);
+    setIsResultModalOpen(true);
+  };
+
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
-      <div className="w-96 bg-white border-r border-slate-200 p-6 flex flex-col">
+    <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans print:bg-white print:text-black">
+      
+      {/* 💡 [모달창] 결과 요약 및 PDF 인쇄 */}
+      {isResultModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/80 z-50 flex justify-center items-center p-6 print:p-0 print:bg-white">
+          <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl print:max-h-none print:shadow-none print:w-full">
+            
+            {/* 상단 버튼 영역 (인쇄 시 숨김) */}
+            <div className="p-6 border-b flex justify-between items-center print:hidden">
+              <h2 className="text-2xl font-bold">📊 결과 요약 보고서</h2>
+              <div className="flex gap-3">
+                <button onClick={() => window.print()} className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition shadow-sm">
+                  📄 PDF로 저장 / 인쇄
+                </button>
+                <button onClick={() => setIsResultModalOpen(false)} className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition">
+                  닫기
+                </button>
+              </div>
+            </div>
+
+            {/* 인쇄되는 본문 영역 */}
+            <div className="p-6 md:p-10 overflow-y-auto print:overflow-visible flex-1">
+              {/* 인쇄 전용 타이틀 */}
+              <div className="hidden print:block mb-8 pb-4 border-b-2 border-black">
+                <h1 className="text-3xl font-black">Isaiah6tyOne - 행사 결과 보고서</h1>
+                <p className="text-gray-500 mt-2">출력일시: {new Date().toLocaleString()}</p>
+              </div>
+
+              {resultsData.map((q, idx) => (
+                <div key={q.id} className="mb-10 page-break-inside-avoid">
+                  <h3 className="text-xl font-bold mb-4 bg-slate-100 print:bg-gray-100 p-3 rounded-lg flex items-center gap-2">
+                    <span className="text-violet-600 print:text-black">Q{idx + 1}.</span> {q.title}
+                    <span className="text-sm font-normal text-slate-500 ml-auto">
+                      ({q.type === 'multiple_choice' ? '객관식' : q.type === 'word_cloud' ? '단어구름' : 'Q&A'})
+                    </span>
+                  </h3>
+                  
+                  {q.type === 'multiple_choice' ? (
+                    <table className="w-full border-collapse border border-slate-300 text-left rounded-lg overflow-hidden">
+                      <thead className="bg-slate-50 print:bg-gray-50">
+                        <tr>
+                          <th className="border border-slate-300 p-3.5 font-bold">선택지</th>
+                          <th className="border border-slate-300 p-3.5 font-bold w-32 text-center">응답 수</th>
+                          <th className="border border-slate-300 p-3.5 font-bold w-32 text-center">비율</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {q.options?.map((opt: string) => {
+                          const count = q.answers.filter((a: any) => a.answer_text === opt).length;
+                          const total = q.answers.length;
+                          const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+                          return (
+                            <tr key={opt}>
+                              <td className="border border-slate-300 p-3.5">{opt}</td>
+                              <td className="border border-slate-300 p-3.5 text-center font-semibold">{count}명</td>
+                              <td className="border border-slate-300 p-3.5 text-center text-slate-500">{percent}%</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="flex flex-wrap gap-2.5 p-4 border border-slate-200 rounded-xl bg-slate-50/50 print:border-none print:bg-transparent print:p-0">
+                      {q.answers.length === 0 ? (
+                        <span className="text-slate-400">제출된 응답이 없습니다.</span>
+                      ) : (
+                        q.answers.map((a: any, i: number) => (
+                          <span key={i} className="bg-white border border-slate-300 shadow-sm px-3.5 py-1.5 rounded-lg text-sm font-medium print:border-gray-400 print:shadow-none">
+                            {a.answer_text}
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  )}
+                  <div className="mt-3 text-right text-sm font-bold text-slate-400">
+                    총 {q.answers.length}명 참여
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 왼쪽: 방 관리 패널 (인쇄 시 숨김) */}
+      <div className="w-96 bg-white border-r border-slate-200 p-6 flex flex-col print:hidden">
         <div className="text-2xl font-black text-violet-600 mb-6 tracking-tight">Isaiah6tyOne</div>
         <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">방 관리</h2>
         
-        {/* 방 생성 입력 및 테마 선택 */}
         <div className="space-y-3 mb-6">
           <input 
             className="w-full border border-slate-300 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm bg-slate-50" 
@@ -116,16 +224,26 @@ export default function AdminPage() {
         </ul>
       </div>
 
-      <div className="flex-1 p-10 bg-slate-50 overflow-y-auto">
+      {/* 오른쪽: 질문 관리 패널 (인쇄 시 숨김) */}
+      <div className="flex-1 p-10 bg-slate-50 overflow-y-auto print:hidden">
         {!selectedRoomId ? (
           <div className="flex items-center justify-center h-full text-slate-400 font-medium">👈 왼쪽에서 방을 선택해주세요.</div>
         ) : (
           <div className="max-w-3xl mx-auto">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-2xl font-bold">질문 및 슬라이드 관리</h2>
-              <button onClick={handleOpenDisplay} className="bg-violet-600 hover:bg-violet-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-violet-200 transition flex items-center gap-2">전광판 열기 🚀</button>
+              <div className="flex gap-3">
+                {/* 💡 표 보기 버튼 추가됨 */}
+                <button onClick={handleOpenResults} className="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-5 py-3 rounded-xl font-bold shadow-sm transition flex items-center gap-2">
+                  📊 결과 요약 표 보기
+                </button>
+                <button onClick={handleOpenDisplay} className="bg-violet-600 hover:bg-violet-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-violet-200 transition flex items-center gap-2">
+                  전광판 열기 🚀
+                </button>
+              </div>
             </div>
 
+            {/* 질문 작성 폼 */}
             <div className={`p-6 rounded-2xl border shadow-sm mb-8 transition ${editingId ? 'bg-violet-50 border-violet-300' : 'bg-white border-slate-200'}`}>
               <div className="flex justify-between items-center mb-4">
                 <h3 className={`font-bold ${editingId ? 'text-violet-700' : 'text-slate-700'}`}>{editingId ? '✏️ 질문 수정 모드' : '새 슬라이드 추가'}</h3>
@@ -154,6 +272,7 @@ export default function AdminPage() {
               </button>
             </div>
 
+            {/* 등록된 질문 리스트 */}
             <div className="space-y-4">
               {questions.map((q) => (
                 <div key={q.id} className={`p-5 bg-white border rounded-2xl flex items-start gap-4 shadow-sm transition ${editingId === q.id ? 'border-violet-500 ring-2 ring-violet-200' : 'border-slate-200'}`}>
