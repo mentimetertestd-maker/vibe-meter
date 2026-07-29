@@ -44,21 +44,15 @@ export default function DisplayPage() {
 
   const currentQ = questions[currentIndex];
 
-  // 하이브리드(실시간 + 1초 폴링 안전장치)
   useEffect(() => {
     if (!currentQ?.id) return;
 
     const fetchAnswers = async () => {
-      const { data } = await supabase
-        .from('answers')
-        .select('*')
-        .eq('question_id', currentQ.id);
-      
+      const { data } = await supabase.from('answers').select('*').eq('question_id', currentQ.id);
       if (data) setAnswers(data);
     };
 
     fetchAnswers();
-
     const interval = setInterval(fetchAnswers, 1000); 
 
     const channel = supabase
@@ -117,7 +111,6 @@ export default function DisplayPage() {
   };
 
   return (
-    {/* 💡 다크 모드일 때 완전한 순수 블랙(bg-black) 적용 */}
     <div className={`flex flex-col h-screen font-sans overflow-hidden transition-colors duration-500 ${isLight ? 'bg-white text-slate-900' : 'bg-black text-white'}`}>
       {showBigQR && (
         <div className="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center cursor-pointer backdrop-blur-sm" onClick={() => setShowBigQR(false)}>
@@ -126,7 +119,6 @@ export default function DisplayPage() {
         </div>
       )}
 
-      {/* 상단 헤더 (다크 모드 시 순수 블랙과 어울리는 다크 테두리) */}
       <div className={`p-5 md:p-6 flex justify-between items-center border-b z-30 transition-colors ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black border-neutral-900'}`}>
         <div className="flex items-center gap-4">
           <div className={`text-2xl md:text-3xl font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Isaiah6tyOne</div>
@@ -152,7 +144,6 @@ export default function DisplayPage() {
         </div>
       </div>
 
-      {/* 중앙 메인 콘텐츠 */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
         <div className="absolute top-6 z-20 max-w-4xl px-4 pointer-events-none">
           <div className={`inline-block text-xs font-extrabold px-4 py-1.5 rounded-full mb-3 shadow-sm ${isLight ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-violet-950/80 text-violet-300 border border-violet-800/50'}`}>
