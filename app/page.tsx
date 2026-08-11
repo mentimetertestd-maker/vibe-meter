@@ -15,7 +15,6 @@ export default function AdminPage() {
   const [options, setOptions] = useState(['', '']);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // 💡 [옵션 A] 결과 요약 모달 관련 상태
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [resultsData, setResultsData] = useState<any[]>([]);
 
@@ -80,19 +79,15 @@ export default function AdminPage() {
     window.open(`/display/${selectedRoomId}`, '_blank');
   };
 
-  // 💡 결과 데이터 불러오기 로직
   const handleOpenResults = async () => {
     if (!selectedRoomId) return alert('방을 선택해주세요!');
     
-    // 1. 해당 방의 모든 질문 가져오기
     const { data: qData } = await supabase.from('questions').select('*').eq('room_id', selectedRoomId).order('sort_order', { ascending: true });
     if (!qData || qData.length === 0) return alert('등록된 질문이 없습니다.');
 
-    // 2. 해당 질문들에 달린 모든 답변 가져오기
     const qIds = qData.map(q => q.id);
     const { data: aData } = await supabase.from('answers').select('*').in('question_id', qIds);
 
-    // 3. 질문별로 답변 데이터 묶어주기
     const grouped = qData.map(q => {
       const answersForQ = aData?.filter(a => a.question_id === q.id) || [];
       return { ...q, answers: answersForQ };
@@ -105,12 +100,10 @@ export default function AdminPage() {
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans print:bg-white print:text-black">
       
-      {/* 💡 [모달창] 결과 요약 및 PDF 인쇄 */}
       {isResultModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 z-50 flex justify-center items-center p-6 print:p-0 print:bg-white">
           <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl print:max-h-none print:shadow-none print:w-full">
             
-            {/* 상단 버튼 영역 (인쇄 시 숨김) */}
             <div className="p-6 border-b flex justify-between items-center print:hidden">
               <h2 className="text-2xl font-bold">📊 결과 요약 보고서</h2>
               <div className="flex gap-3">
@@ -123,9 +116,7 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 인쇄되는 본문 영역 */}
             <div className="p-6 md:p-10 overflow-y-auto print:overflow-visible flex-1">
-              {/* 인쇄 전용 타이틀 */}
               <div className="hidden print:block mb-8 pb-4 border-b-2 border-black">
                 <h1 className="text-3xl font-black">Isaiah6tyOne - 행사 결과 보고서</h1>
                 <p className="text-gray-500 mt-2">출력일시: {new Date().toLocaleString()}</p>
@@ -134,7 +125,9 @@ export default function AdminPage() {
               {resultsData.map((q, idx) => (
                 <div key={q.id} className="mb-10 page-break-inside-avoid">
                   <h3 className="text-xl font-bold mb-4 bg-slate-100 print:bg-gray-100 p-3 rounded-lg flex items-center gap-2">
-                    <span className="text-violet-600 print:text-black">Q{idx + 1}.</span> {q.title}
+                    <span className="text-violet-600 print:text-black">Q{idx + 1}.</span> 
+                    {/* 💡 표에서도 줄바꿈이 적용되도록 변경 */}
+                    <span className="whitespace-pre-wrap break-keep">{q.title}</span>
                     <span className="text-sm font-normal text-slate-500 ml-auto">
                       ({q.type === 'multiple_choice' ? '객관식' : q.type === 'word_cloud' ? '단어구름' : 'Q&A'})
                     </span>
@@ -187,7 +180,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* 왼쪽: 방 관리 패널 (인쇄 시 숨김) */}
       <div className="w-96 bg-white border-r border-slate-200 p-6 flex flex-col print:hidden">
         <div className="text-2xl font-black text-violet-600 mb-6 tracking-tight">Isaiah6tyOne</div>
         <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">방 관리</h2>
@@ -224,7 +216,6 @@ export default function AdminPage() {
         </ul>
       </div>
 
-      {/* 오른쪽: 질문 관리 패널 (인쇄 시 숨김) */}
       <div className="flex-1 p-10 bg-slate-50 overflow-y-auto print:hidden">
         {!selectedRoomId ? (
           <div className="flex items-center justify-center h-full text-slate-400 font-medium">👈 왼쪽에서 방을 선택해주세요.</div>
@@ -233,7 +224,6 @@ export default function AdminPage() {
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-2xl font-bold">질문 및 슬라이드 관리</h2>
               <div className="flex gap-3">
-                {/* 💡 표 보기 버튼 추가됨 */}
                 <button onClick={handleOpenResults} className="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-5 py-3 rounded-xl font-bold shadow-sm transition flex items-center gap-2">
                   📊 결과 요약 표 보기
                 </button>
@@ -243,7 +233,6 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 질문 작성 폼 */}
             <div className={`p-6 rounded-2xl border shadow-sm mb-8 transition ${editingId ? 'bg-violet-50 border-violet-300' : 'bg-white border-slate-200'}`}>
               <div className="flex justify-between items-center mb-4">
                 <h3 className={`font-bold ${editingId ? 'text-violet-700' : 'text-slate-700'}`}>{editingId ? '✏️ 질문 수정 모드' : '새 슬라이드 추가'}</h3>
@@ -256,7 +245,14 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              <input className="w-full border border-slate-300 p-3.5 rounded-xl mb-4 bg-slate-50 focus:bg-white transition" placeholder="질문을 입력하세요..." value={newQuestionTitle} onChange={(e) => setNewQuestionTitle(e.target.value)} />
+              {/* 💡 한 줄짜리 input을 여러 줄 쓸 수 있는 textarea로 변경 */}
+              <textarea 
+                className="w-full border border-slate-300 p-3.5 rounded-xl mb-4 bg-slate-50 focus:bg-white transition resize-none whitespace-pre-wrap" 
+                rows={3}
+                placeholder="질문을 입력하세요... (엔터키를 눌러 줄바꿈 가능)" 
+                value={newQuestionTitle} 
+                onChange={(e) => setNewQuestionTitle(e.target.value)} 
+              />
 
               {questionType === 'multiple_choice' && (
                 <div className="mb-4 space-y-2 pl-2">
@@ -272,13 +268,13 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {/* 등록된 질문 리스트 */}
             <div className="space-y-4">
               {questions.map((q) => (
                 <div key={q.id} className={`p-5 bg-white border rounded-2xl flex items-start gap-4 shadow-sm transition ${editingId === q.id ? 'border-violet-500 ring-2 ring-violet-200' : 'border-slate-200'}`}>
                   <div className="bg-violet-100 text-violet-700 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0">Slide {q.sort_order}</div>
                   <div className="flex-1">
-                    <div className="font-semibold text-slate-800 text-lg mb-1">{q.title}</div>
+                    {/* 💡 질문 목록에서도 줄바꿈이 예쁘게 적용되도록 클래스 추가 */}
+                    <div className="font-semibold text-slate-800 text-lg mb-1 whitespace-pre-wrap break-keep">{q.title}</div>
                     <div className="text-xs font-semibold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-md w-fit">
                       {q.type === 'word_cloud' ? '☁️ 단어구름' : q.type === 'multiple_choice' ? '📊 객관식' : '💬 익명 Q&A'}
                     </div>
