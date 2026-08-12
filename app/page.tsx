@@ -56,6 +56,7 @@ export default function AdminPage() {
     fetchRooms();
   };
 
+  // 💡 질문 저장 함수 (subtitle 에러 발생 시 예외 처리)
   const handleSaveQuestion = async () => {
     if (!selectedRoomId) return alert('방을 먼저 선택해주세요!');
     if (!newQuestionTitle.trim()) return alert('질문을 입력해주세요!');
@@ -63,16 +64,26 @@ export default function AdminPage() {
     const filteredOptions = questionType === 'multiple_choice' ? options.filter(opt => opt.trim() !== '') : [];
     
     if (editingId) {
-      await supabase.from('questions').update({ 
+      let { error } = await supabase.from('questions').update({ 
         title: newQuestionTitle, 
         subtitle: newSubtitle || '', 
         type: questionType, 
         options: filteredOptions 
       }).eq('id', editingId);
+
+      // 만약 subtitle 칼럼이 없어서 에러가 나면 subtitle 없이 다시 저장 시도
+      if (error) {
+        const fallback = await supabase.from('questions').update({ 
+          title: newQuestionTitle, 
+          type: questionType, 
+          options: filteredOptions 
+        }).eq('id', editingId);
+        if (fallback.error) return alert('질문 수정 실패: ' + fallback.error.message);
+      }
       alert('수정되었습니다!');
     } else {
       const nextOrder = questions.length + 1;
-      await supabase.from('questions').insert([{ 
+      let { error } = await supabase.from('questions').insert([{ 
         room_id: selectedRoomId, 
         title: newQuestionTitle, 
         subtitle: newSubtitle || '', 
@@ -80,6 +91,18 @@ export default function AdminPage() {
         type: questionType, 
         options: filteredOptions 
       }]);
+
+      // 만약 subtitle 칼럼이 없어서 에러가 나면 subtitle 없이 다시 저장 시도
+      if (error) {
+        const fallback = await supabase.from('questions').insert([{ 
+          room_id: selectedRoomId, 
+          title: newQuestionTitle, 
+          sort_order: nextOrder, 
+          type: questionType, 
+          options: filteredOptions 
+        }]);
+        if (fallback.error) return alert('질문 저장 실패: ' + fallback.error.message);
+      }
     }
 
     setNewQuestionTitle(''); setNewSubtitle(''); setOptions(['', '']); setEditingId(null); setQuestionType('word_cloud');
