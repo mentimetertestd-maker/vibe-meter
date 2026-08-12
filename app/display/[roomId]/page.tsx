@@ -83,7 +83,7 @@ export default function DisplayPage() {
 
   const wordList = getWordCloudData();
 
-  // 💡 단어별 고유 색상 고정
+  // 💡 단어별 고유 색상 고정 (useMemo 적용)
   const wordColors = useMemo(() => {
     const colorMap: { [key: string]: string } = {};
     wordList.forEach(({ text }) => {
@@ -98,13 +98,17 @@ export default function DisplayPage() {
   // 💡 밀집형 나선 좌표 알고리즘
   const getTightPosition = (index: number, text: string) => {
     if (index === 0) return { top: '50%', left: '50%' };
+
     const angle = index * 2.2; 
     const radius = 5 + Math.sqrt(index) * 8.5; 
+
     const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const jitterX = ((hash % 3) - 1);
     const jitterY = (((hash * 3) % 3) - 1);
+
     const x = 50 + radius * Math.cos(angle) + jitterX;
     const y = 50 + radius * Math.sin(angle) * 0.65 + jitterY; 
+
     return { top: `${Math.max(18, Math.min(82, y))}%`, left: `${Math.max(15, Math.min(85, x))}%` };
   };
 
@@ -120,6 +124,7 @@ export default function DisplayPage() {
   const bgColor = isLight ? 'bg-white' : 'bg-black';
   const borderColor = isLight ? 'border-slate-200' : 'border-neutral-800';
   const cardBg = isLight ? 'bg-white' : 'bg-neutral-900/60';
+
   return (
     <div className={`flex flex-col h-screen font-sans overflow-hidden transition-colors duration-500 ${bgColor} ${textColor}`}>
       
@@ -203,21 +208,27 @@ export default function DisplayPage() {
                 const pos = getTightPosition(idx, item.text);
                 const color = wordColors[item.text] || '#38bdf8'; 
                 
-                let sizeClass = "text-lg md:text-xl font-medium opacity-80";
+                // 💡 횟수(count)에 비례해서 글자 크기(rem)가 무한히 커지도록 동적 계산
+                // 1등(가운데) 단어는 기본 3.5rem부터, 다른 단어들은 1.2rem부터 시작
+                // 같은 단어가 제출될 때마다 0.6rem씩 사이즈가 제한 없이 계속 증가함
+                const baseSize = idx === 0 ? 3.5 : 1.2;
+                const dynamicFontSize = `${baseSize + (item.count - 1) * 0.6}rem`;
+
+                let weightClass = "font-medium opacity-80";
                 let zIndex = "z-10";
 
                 if (idx === 0) {
-                  sizeClass = "text-5xl md:text-7xl font-black opacity-100 drop-shadow-2xl";
-                  zIndex = "z-30";
+                  weightClass = "font-black opacity-100 drop-shadow-2xl";
+                  zIndex = "z-50";
                 } else if (idx <= 2 || item.count >= 3) {
-                  sizeClass = "text-3xl md:text-5xl font-extrabold opacity-95";
-                  zIndex = "z-25";
+                  weightClass = "font-extrabold opacity-95";
+                  zIndex = "z-40";
                 } else if (idx <= 5 || item.count === 2) {
-                  sizeClass = "text-xl md:text-3xl font-bold opacity-90";
-                  zIndex = "z-20";
+                  weightClass = "font-bold opacity-90";
+                  zIndex = "z-30";
                 } else if (idx <= 10) {
-                  sizeClass = "text-lg md:text-xl font-semibold opacity-85";
-                  zIndex = "z-15";
+                  weightClass = "font-semibold opacity-85";
+                  zIndex = "z-20";
                 }
 
                 const animDelay = (idx * 0.2) % 2;
@@ -230,9 +241,10 @@ export default function DisplayPage() {
                       top: pos.top, 
                       left: pos.left, 
                       color: color,
+                      fontSize: dynamicFontSize, // 👈 제한이 없는 동적 폰트 사이즈 적용!
                       animationDelay: `0s, ${animDelay}s`
                     }} 
-                    className={`cloud-item select-none whitespace-nowrap transition-all duration-500 ${sizeClass} ${zIndex}`}
+                    className={`cloud-item select-none whitespace-nowrap transition-all duration-500 ${weightClass} ${zIndex}`}
                   >
                     <span>{item.text}</span>
                   </div>
@@ -261,7 +273,7 @@ export default function DisplayPage() {
           </div>
         )}
 
-        {/* 💬 익명 Q&A (자동 스크롤 탑 기능 적용) */}
+        {/* 💬 익명 Q&A */}
         {currentQ.type === 'qna' && (
           <div ref={qnaScrollRef} className="w-full max-w-4xl h-full overflow-y-auto flex flex-col items-center gap-4 z-10 p-2 scroll-smooth">
             {answers.length === 0 ? (
