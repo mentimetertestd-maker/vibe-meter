@@ -4,6 +4,13 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
+// 🎨 단어구름 알록달록 무지개 색상 팔레트
+const COLOR_PALETTE = [
+  '#f87171', '#fb923c', '#fbbf24', '#34d399', 
+  '#22d3ee', '#818cf8', '#c084fc', '#f472b6', 
+  '#38bdf8', '#a3e635', '#4ade80', '#e879f9'
+];
+
 export default function DisplayPage() {
   const params = useParams();
   const roomId = params.roomId as string;
@@ -44,6 +51,7 @@ export default function DisplayPage() {
 
   const currentQ = questions[currentIndex];
 
+  // 💬 Q&A 답변 시간 순서대로 정렬 (created_at ascending)
   useEffect(() => {
     if (!currentQ?.id) return;
     const fetchAnswers = async () => {
@@ -94,6 +102,11 @@ export default function DisplayPage() {
     return { top: `${jitterTop}%`, left: `${jitterLeft}%` };
   };
 
+  const getColorByText = (text: string, index: number) => {
+    const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + index;
+    return COLOR_PALETTE[hash % COLOR_PALETTE.length];
+  };
+
   return (
     <div className={`flex flex-col h-screen font-sans overflow-hidden transition-colors duration-500 ${bgColor} ${textColor}`}>
       {showBigQR && (
@@ -103,11 +116,15 @@ export default function DisplayPage() {
         </div>
       )}
 
-      {/* 상단 헤더 */}
-      <div className={`p-4 md:p-6 flex justify-between items-center border-b z-30 flex-shrink-0 ${borderColor}`}>
+      {/* 헤더 */}
+      <div className={`p-4 md:p-5 flex justify-between items-center border-b z-30 flex-shrink-0 ${borderColor}`}>
         <div className="flex items-center gap-4">
           <div className="text-xl md:text-2xl font-black tracking-tight">Isaiah6tyOne</div>
-          {room?.title && <div className={`text-xs md:text-sm font-bold px-3 py-1 rounded-xl border ${borderColor} ${subTextColor}`}>{room.title}</div>}
+          {room?.title && (
+            <div className={`text-xs md:text-sm font-bold px-3 py-1 rounded-xl border ${borderColor} ${subTextColor}`}>
+              {room.title}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-4 md:gap-6">
           {joinUrl && (
@@ -119,36 +136,57 @@ export default function DisplayPage() {
               <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`} className="w-10 h-10 rounded-lg bg-white p-1" />
             </div>
           )}
-          <div className={`font-bold px-4 py-2 rounded-full border text-xs md:text-sm ${borderColor} ${subTextColor}`}>{currentIndex + 1} / {questions.length}</div>
+          <div className={`font-bold px-4 py-2 rounded-full border text-xs md:text-sm ${borderColor} ${subTextColor}`}>
+            {currentIndex + 1} / {questions.length}
+          </div>
         </div>
       </div>
 
-      {/* 질문 제목 */}
-      <div className="py-8 px-6 text-center flex-shrink-0 w-full max-w-5xl mx-auto z-20">
-        <div className={`inline-block text-xs font-bold px-3.5 py-1 rounded-full mb-3 border ${borderColor} ${subTextColor}`}>
+      {/* 소제목 & 줄바꿈 메인 질문 */}
+      <div className="py-6 px-6 text-center flex-shrink-0 w-full max-w-5xl mx-auto z-20">
+        <div className={`inline-block text-xs font-bold px-3.5 py-1 rounded-full mb-2 border ${borderColor} ${subTextColor}`}>
           {currentQ.type === 'word_cloud' ? '☁️ 단어구름' : currentQ.type === 'multiple_choice' ? '📊 객관식' : '💬 익명 Q&A'}
         </div>
-        <h1 className={`text-3xl md:text-5xl font-black tracking-tight leading-tight ${textColor}`}>{currentQ.title}</h1>
+        {currentQ.subtitle && (
+          <h2 className={`text-base md:text-lg font-bold mb-1.5 ${subTextColor} tracking-wide`}>
+            {currentQ.subtitle}
+          </h2>
+        )}
+        <h1 className={`text-2xl md:text-4xl lg:text-5xl font-black tracking-tight leading-relaxed whitespace-pre-wrap break-keep ${textColor}`}>
+          {currentQ.title}
+        </h1>
       </div>
 
-      {/* 콘텐츠 표시 (단어구름 / 객관식 / Q&A) */}
+      {/* 전광판 슬라이드 내용 */}
       <div className="flex-1 relative overflow-hidden flex flex-col items-center justify-center px-6 pb-16">
+        
+        {/* ☁️ 단어구름 (색상 랜덤) */}
         {currentQ.type === 'word_cloud' && (
           <div className="w-full h-full relative">
             {answers.length === 0 ? (
-              <div className={`h-full flex items-center justify-center text-lg md:text-xl font-medium ${subTextColor}`}>참가자들의 답변을 기다리고 있습니다...</div>
+              <div className={`h-full flex items-center justify-center text-lg md:text-xl font-medium ${subTextColor}`}>
+                참가자들의 답변을 기다리고 있습니다...
+              </div>
             ) : (
               wordList.map((item, idx) => {
                 const pos = getPosition(idx, item.text);
-                let sizeClass = "text-xl md:text-2xl font-semibold opacity-80";
+                const color = getColorByText(item.text, idx);
+                let sizeClass = "text-xl md:text-2xl font-semibold opacity-90";
                 let zIndex = "z-10";
 
-                if (idx === 0) { sizeClass = "text-6xl md:text-8xl font-black opacity-100 drop-shadow-lg"; zIndex = "z-50"; }
-                else if (item.count >= 3) { sizeClass = "text-4xl md:text-6xl font-extrabold opacity-95"; zIndex = "z-30"; }
-                else if (item.count === 2) { sizeClass = "text-2xl md:text-4xl font-bold opacity-90"; zIndex = "z-20"; }
+                if (idx === 0) {
+                  sizeClass = "text-6xl md:text-8xl font-black opacity-100 drop-shadow-2xl";
+                  zIndex = "z-50";
+                } else if (item.count >= 3) {
+                  sizeClass = "text-4xl md:text-6xl font-extrabold opacity-95";
+                  zIndex = "z-30";
+                } else if (item.count === 2) {
+                  sizeClass = "text-2xl md:text-4xl font-bold opacity-90";
+                  zIndex = "z-20";
+                }
 
                 return (
-                  <div key={idx} style={{ position: 'absolute', top: pos.top, left: pos.left, transform: 'translate(-50%, -50%)' }} className={`absolute select-none whitespace-nowrap ${sizeClass} ${textColor} ${zIndex}`}>
+                  <div key={idx} style={{ position: 'absolute', top: pos.top, left: pos.left, transform: 'translate(-50%, -50%)', color: color }} className={`absolute select-none whitespace-nowrap ${sizeClass} ${zIndex}`}>
                     <span>{item.text}</span>
                   </div>
                 );
@@ -157,6 +195,7 @@ export default function DisplayPage() {
           </div>
         )}
 
+        {/* 📊 객관식 */}
         {currentQ.type === 'multiple_choice' && (
           <div className="w-full max-w-2xl space-y-3.5 z-10 overflow-y-auto max-h-full py-2">
             {currentQ.options?.map((opt: string, idx: number) => {
@@ -175,13 +214,14 @@ export default function DisplayPage() {
           </div>
         )}
 
+        {/* 💬 익명 Q&A (시간 순서 정렬 & 줄바꿈 지원) */}
         {currentQ.type === 'qna' && (
           <div className="w-full max-w-4xl h-full overflow-y-auto flex flex-col items-center gap-4 z-10 p-2">
             {answers.length === 0 ? (
               <div className={`h-full flex items-center justify-center text-lg ${subTextColor}`}>아직 제출된 답변이 없습니다.</div>
             ) : (
               answers.map((ans, idx) => (
-                <div key={idx} className={`w-full border px-6 py-5 rounded-2xl text-lg md:text-xl font-medium text-left shadow-sm ${cardBg} ${borderColor}`}>
+                <div key={idx} className={`w-full border px-6 py-5 rounded-2xl text-lg md:text-xl font-medium text-left shadow-sm whitespace-pre-wrap break-keep leading-relaxed tracking-wide ${cardBg} ${borderColor}`}>
                   {ans.answer_text}
                 </div>
               ))
@@ -194,7 +234,7 @@ export default function DisplayPage() {
         </div>
       </div>
 
-      {/* 하단 슬라이드 넘김 버튼 */}
+      {/* 하단 슬라이드 버튼 */}
       <div className={`p-4 flex justify-center gap-6 border-t z-30 flex-shrink-0 ${borderColor}`}>
         <button onClick={prevSlide} disabled={currentIndex === 0} className={`px-7 py-3 rounded-2xl font-bold transition text-sm border disabled:opacity-30 ${isLight ? 'bg-white border-slate-300 hover:bg-slate-100' : 'bg-neutral-900 border-neutral-800 hover:bg-neutral-800'}`}>◀ 이전</button>
         <button onClick={nextSlide} disabled={currentIndex === questions.length - 1} className={`px-7 py-3 rounded-2xl font-bold transition text-sm disabled:opacity-30 ${isLight ? 'bg-slate-900 text-white' : 'bg-white text-black'}`}>다음 ▶</button>
