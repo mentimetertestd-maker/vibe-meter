@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase'; 
 
 export default function AdminPage() {
-  // 💡 1. 파트 목록 및 상태 정의 (요청하신 파트 이름 반영)
   const PART_LIST = ['워리커', '워밴커', '본질', '리바이브'];
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -23,16 +22,19 @@ export default function AdminPage() {
   const [options, setOptions] = useState(['', '']);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const [isResultModalOpen, setIsResultModalOpen] = useState(false);
+  const [resultsData, setResultsData] = useState<any[]>([]);
+
   useEffect(() => { if (isLoggedIn) fetchRooms(); }, [isLoggedIn, loginPart]);
   useEffect(() => { if (selectedRoomId) fetchQuestions(selectedRoomId); }, [selectedRoomId]);
 
-  // 💡 2. 파트별 비밀번호 설정 (원하는 비밀번호로 자유롭게 수정 가능)
+  // 비밀번호 설정 (원하시는 대로 수정하세요)
   const handleLogin = () => {
     const passwords: { [key: string]: string } = {
-      '워리커': 'dnjflzj61',   // 워리커 파트 비밀번호 (영문/숫자 혼용 가능)
-      '워밴커': 'dnjqoszj61',   // 워밴커 파트 비밀번호
-      '본질': 'qhswlf61',     // 본질 파트 비밀번호
-      '리바이브': 'flqkdlqm61', // 리바이브 파트 비밀번호
+      '워리커': '1111', 
+      '워밴커': '2222',
+      '본질': '3333',
+      '리바이브': '4444',
     };
 
     if (password === passwords[loginPart]) {
@@ -42,7 +44,6 @@ export default function AdminPage() {
     }
   };
 
-  // 💡 3. 로그아웃 처리 함수
   const handleLogout = () => {
     setIsLoggedIn(false);
     setPassword('');
@@ -52,60 +53,29 @@ export default function AdminPage() {
   };
 
   const fetchRooms = async () => {
-    const { data, error } = await supabase
-      .from('rooms')
-      .select('*')
-      .eq('part_name', loginPart)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('방 불러오기 오류:', error);
-    } else if (data) {
-      setRooms(data);
-    }
+    const { data, error } = await supabase.from('rooms').select('*').eq('part_name', loginPart).order('created_at', { ascending: false });
+    if (error) console.error('방 불러오기 오류:', error);
+    else if (data) setRooms(data);
   };
 
   const fetchQuestions = async (roomId: string) => {
-    const { data, error } = await supabase
-      .from('questions')
-      .select('*')
-      .eq('room_id', roomId)
-      .order('sort_order', { ascending: true });
-    
+    const { data, error } = await supabase.from('questions').select('*').eq('room_id', roomId).order('sort_order', { ascending: true });
     if (error) console.error('질문 불러오기 오류:', error);
     else if (data) setQuestions(data);
   };
 
   const handleCreateRoom = async () => {
     if (!newRoomTitle.trim()) return alert('방 이름을 입력해주세요!');
-
-    const { data, error } = await supabase
-      .from('rooms')
-      .insert([{ 
-        title: newRoomTitle.trim(), 
-        theme: roomTheme, 
-        part_name: loginPart 
-      }])
-      .select();
-
-    if (error) {
-      alert('방 생성에 실패했습니다: ' + error.message);
-      console.error(error);
-    } else {
-      setNewRoomTitle('');
-      fetchRooms();
-    }
+    const { error } = await supabase.from('rooms').insert([{ title: newRoomTitle.trim(), theme: roomTheme, part_name: loginPart }]);
+    if (error) alert('방 생성 실패: ' + error.message);
+    else { setNewRoomTitle(''); fetchRooms(); }
   };
 
   const handleDeleteRoom = async (roomId: string) => {
     if (!confirm('방을 삭제하시겠습니까?')) return;
-    const { error } = await supabase.from('rooms').delete().eq('id', roomId);
-    if (error) {
-      alert('삭제 실패: ' + error.message);
-    } else {
-      if (selectedRoomId === roomId) setSelectedRoomId(null);
-      fetchRooms();
-    }
+    await supabase.from('rooms').delete().eq('id', roomId);
+    if (selectedRoomId === roomId) setSelectedRoomId(null);
+    fetchRooms();
   };
 
   const handleSaveQuestion = async () => {
@@ -115,34 +85,14 @@ export default function AdminPage() {
     const filteredOptions = questionType === 'multiple_choice' ? options.filter(opt => opt.trim() !== '') : [];
     
     if (editingId) {
-      const { error } = await supabase.from('questions').update({ 
-        title: newQuestionTitle, 
-        subtitle: newSubtitle, 
-        type: questionType, 
-        options: filteredOptions 
-      }).eq('id', editingId);
-
-      if (error) alert('수정 실패: ' + error.message);
-      else alert('수정되었습니다!');
+      await supabase.from('questions').update({ title: newQuestionTitle, subtitle: newSubtitle, type: questionType, options: filteredOptions }).eq('id', editingId);
+      alert('수정되었습니다!');
     } else {
       const nextOrder = questions.length + 1;
-      const { error } = await supabase.from('questions').insert([{ 
-        room_id: selectedRoomId, 
-        title: newQuestionTitle, 
-        subtitle: newSubtitle, 
-        sort_order: nextOrder, 
-        type: questionType, 
-        options: filteredOptions 
-      }]);
-
-      if (error) alert('질문 저장 실패: ' + error.message);
+      await supabase.from('questions').insert([{ room_id: selectedRoomId, title: newQuestionTitle, subtitle: newSubtitle, sort_order: nextOrder, type: questionType, options: filteredOptions }]);
     }
 
-    setNewQuestionTitle(''); 
-    setNewSubtitle(''); 
-    setOptions(['', '']); 
-    setEditingId(null); 
-    setQuestionType('word_cloud');
+    setNewQuestionTitle(''); setNewSubtitle(''); setOptions(['', '']); setEditingId(null); setQuestionType('word_cloud');
     fetchQuestions(selectedRoomId);
   };
 
@@ -164,7 +114,24 @@ export default function AdminPage() {
     window.open(`/display/${selectedRoomId}`, '_blank');
   };
 
-  // 💡 로그인 전 화면
+  const handleOpenResults = async () => {
+    if (!selectedRoomId) return alert('방을 선택해주세요!');
+    const { data: qData } = await supabase.from('questions').select('*').eq('room_id', selectedRoomId).order('sort_order', { ascending: true });
+    if (!qData || qData.length === 0) return alert('등록된 질문이 없습니다.');
+
+    const qIds = qData.map(q => q.id);
+    const { data: aData } = await supabase.from('answers').select('*').in('question_id', qIds);
+
+    const grouped = qData.map(q => {
+      const answersForQ = aData?.filter(a => a.question_id === q.id) || [];
+      return { ...q, answers: answersForQ };
+    });
+
+    setResultsData(grouped);
+    setIsResultModalOpen(true);
+  };
+
+  // 로그인 전 화면
   if (!isLoggedIn) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-100 font-sans">
@@ -174,57 +141,100 @@ export default function AdminPage() {
           
           <div className="grid grid-cols-2 gap-2 mb-6">
             {PART_LIST.map(part => (
-              <button 
-                key={part} 
-                onClick={() => setLoginPart(part)} 
-                className={`py-3 rounded-xl font-bold text-sm transition ${loginPart === part ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-              >
+              <button key={part} onClick={() => setLoginPart(part)} className={`py-3 rounded-xl font-bold text-sm transition ${loginPart === part ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
                 {part}
               </button>
             ))}
           </div>
 
-          <input 
-            type="password" 
-            placeholder="비밀번호 입력" 
-            className="w-full border-2 border-slate-200 p-4 rounded-xl mb-4 text-center focus:border-slate-900 focus:outline-none" 
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)} 
-            onKeyDown={(e) => e.key === 'Enter' && handleLogin()} 
-          />
-          <button onClick={handleLogin} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-black transition">
-            {loginPart} 파트 로그인
-          </button>
+          <input type="password" placeholder="비밀번호 입력" className="w-full border-2 border-slate-200 p-4 rounded-xl mb-4 text-center focus:border-slate-900 focus:outline-none" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+          <button onClick={handleLogin} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-black transition">{loginPart} 파트 로그인</button>
         </div>
       </div>
     );
   }
 
-  // 💡 로그인 후 대시보드 화면
+  // 로그인 후 대시보드 화면
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
-      <div className="w-96 bg-white border-r border-slate-200 p-6 flex flex-col">
+    <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans print:bg-white print:text-black">
+      
+      {/* 결과 요약 모달 및 PDF 인쇄 */}
+      {isResultModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/80 z-50 flex justify-center items-center p-6 print:p-0 print:bg-white">
+          <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl print:max-h-none print:shadow-none print:w-full">
+            <div className="p-6 border-b flex justify-between items-center print:hidden">
+              <h2 className="text-2xl font-bold">📊 결과 요약 보고서</h2>
+              <div className="flex gap-3">
+                <button onClick={() => window.print()} className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition shadow-sm">📄 PDF로 저장 / 인쇄</button>
+                <button onClick={() => setIsResultModalOpen(false)} className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition">닫기</button>
+              </div>
+            </div>
+
+            <div className="p-6 md:p-10 overflow-y-auto print:overflow-visible flex-1">
+              <div className="hidden print:block mb-8 pb-4 border-b-2 border-black">
+                <h1 className="text-3xl font-black">Isaiah6tyOne - {loginPart} 파트 결과 보고서</h1>
+                <p className="text-gray-500 mt-2">출력일시: {new Date().toLocaleString()}</p>
+              </div>
+
+              {resultsData.map((q, idx) => (
+                <div key={q.id} className="mb-10 page-break-inside-avoid">
+                  <h3 className="text-xl font-bold mb-4 bg-slate-100 print:bg-gray-100 p-3 rounded-lg flex items-center gap-2">
+                    <span className="text-violet-600 print:text-black">Q{idx + 1}.</span> 
+                    <span className="whitespace-pre-wrap break-keep">{q.title}</span>
+                    <span className="text-sm font-normal text-slate-500 ml-auto">({q.type})</span>
+                  </h3>
+                  
+                  {q.type === 'multiple_choice' ? (
+                    <table className="w-full border-collapse border border-slate-300 text-left rounded-lg overflow-hidden">
+                      <thead className="bg-slate-50 print:bg-gray-50">
+                        <tr>
+                          <th className="border border-slate-300 p-3.5 font-bold">선택지</th>
+                          <th className="border border-slate-300 p-3.5 font-bold w-32 text-center">응답 수</th>
+                          <th className="border border-slate-300 p-3.5 font-bold w-32 text-center">비율</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {q.options?.map((opt: string) => {
+                          const count = q.answers.filter((a: any) => a.answer_text === opt).length;
+                          const total = q.answers.length;
+                          const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+                          return (
+                            <tr key={opt}>
+                              <td className="border border-slate-300 p-3.5">{opt}</td>
+                              <td className="border border-slate-300 p-3.5 text-center font-semibold">{count}명</td>
+                              <td className="border border-slate-300 p-3.5 text-center text-slate-500">{percent}%</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="flex flex-wrap gap-2.5 p-4 border border-slate-200 rounded-xl bg-slate-50/50 print:border-none print:bg-transparent print:p-0">
+                      {q.answers.length === 0 ? <span className="text-slate-400">제출된 응답이 없습니다.</span> : q.answers.map((a: any, i: number) => (
+                        <span key={i} className="bg-white border border-slate-300 shadow-sm px-3.5 py-1.5 rounded-lg text-sm font-medium print:border-gray-400 print:shadow-none">{a.answer_text}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-3 text-right text-sm font-bold text-slate-400">총 {q.answers.length}명 참여</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 방 관리 패널 */}
+      <div className="w-96 bg-white border-r border-slate-200 p-6 flex flex-col print:hidden">
         <div className="flex justify-between items-center mb-6">
           <div>
             <div className="text-2xl font-black text-slate-900 tracking-tight">Isaiah6tyOne</div>
             <div className="text-xs font-bold text-violet-600 mt-0.5">{loginPart} 파트 관리 중</div>
           </div>
-          {/* 💡 로그아웃 버튼 */}
-          <button 
-            onClick={handleLogout} 
-            className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition"
-          >
-            로그아웃
-          </button>
+          <button onClick={handleLogout} className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition">로그아웃</button>
         </div>
         
         <div className="space-y-3 mb-6">
-          <input 
-            className="w-full border border-slate-300 p-3 rounded-xl text-sm" 
-            placeholder="새 방 이름..." 
-            value={newRoomTitle} 
-            onChange={(e) => setNewRoomTitle(e.target.value)} 
-          />
+          <input className="w-full border border-slate-300 p-3 rounded-xl text-sm" placeholder="새 방 이름..." value={newRoomTitle} onChange={(e) => setNewRoomTitle(e.target.value)} />
           <div className="flex items-center justify-between bg-slate-100 p-1.5 rounded-xl">
             <span className="text-xs font-bold text-slate-500 pl-2">테마 모드</span>
             <div className="flex gap-1">
@@ -245,14 +255,18 @@ export default function AdminPage() {
         </ul>
       </div>
 
-      <div className="flex-1 p-10 bg-slate-50 overflow-y-auto">
+      {/* 질문 관리 패널 */}
+      <div className="flex-1 p-10 bg-slate-50 overflow-y-auto print:hidden">
         {!selectedRoomId ? (
           <div className="flex items-center justify-center h-full text-slate-400 font-medium">👈 왼쪽에서 방을 선택하거나 새 방을 생성해주세요.</div>
         ) : (
           <div className="max-w-3xl mx-auto">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-2xl font-bold">질문 및 슬라이드 관리</h2>
-              <button onClick={handleOpenDisplay} className="bg-slate-900 hover:bg-black text-white px-6 py-3 rounded-xl font-bold shadow-lg transition">전광판 열기 🚀</button>
+              <div className="flex gap-3">
+                <button onClick={handleOpenResults} className="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-5 py-3 rounded-xl font-bold shadow-sm transition flex items-center gap-2">📊 결과 요약 표 보기</button>
+                <button onClick={handleOpenDisplay} className="bg-slate-900 hover:bg-black text-white px-6 py-3 rounded-xl font-bold shadow-lg transition">전광판 열기 🚀</button>
+              </div>
             </div>
 
             <div className={`p-6 rounded-2xl border shadow-sm mb-8 bg-white border-slate-200`}>
@@ -293,7 +307,7 @@ export default function AdminPage() {
                   <div className="flex-1">
                     {q.subtitle && <div className="text-sm font-bold text-slate-400 mb-1">{q.subtitle}</div>}
                     <div className="font-semibold text-slate-800 text-lg mb-2 whitespace-pre-wrap break-keep">{q.title}</div>
-                    <div className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md w-fit">{q.type}</div>
+                    <div className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md w-fit">{q.type === 'word_cloud' ? '단어구름' : q.type === 'multiple_choice' ? '객관식' : 'Q&A'}</div>
                   </div>
                   <button onClick={() => handleEditClick(q)} className="text-slate-600 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-xl text-sm font-bold transition">수정</button>
                 </div>
