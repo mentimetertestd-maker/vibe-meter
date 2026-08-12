@@ -70,7 +70,6 @@ export default function JoinPage() {
           {activeQuestion.type === 'word_cloud' ? '☁️ 단어구름' : activeQuestion.type === 'multiple_choice' ? '📊 객관식' : '💬 익명 Q&A'}
         </div>
         
-        {/* 💡 참가자 폰 화면에서도 소제목 보임 */}
         {activeQuestion.subtitle && (
           <h3 className="text-sm font-bold text-slate-500 mb-2">{activeQuestion.subtitle}</h3>
         )}
@@ -108,7 +107,6 @@ export default function JoinPage() {
               </div>
             ) : (
               <div>
-                {/* 💡 한 줄 input을 여러 줄을 쓸 수 있는 textarea로 교체, 엔터 줄바꿈 가능 */}
                 <textarea 
                   className="w-full border-2 border-slate-200 p-4 rounded-2xl mb-4 focus:outline-none focus:border-slate-900 text-slate-900 text-base bg-slate-50 focus:bg-white transition resize-none leading-relaxed" 
                   rows={4}
