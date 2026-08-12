@@ -60,7 +60,8 @@ export default function AdminPage() {
     if (error) {
       console.error('방 불러오기 오류:', error);
     } else if (data) {
-      const filtered = data.filter((r: any) => (r.part_name || '워리커') === loginPart);
+      // 💡 여기서 에러의 주범이었던 part_name 대신 room_part를 사용합니다.
+      const filtered = data.filter((r: any) => (r.room_part || '워리커') === loginPart);
       setRooms(filtered);
     }
   };
@@ -79,17 +80,17 @@ export default function AdminPage() {
   const handleCreateRoom = async () => {
     if (!newRoomTitle.trim()) return alert('방 이름을 입력해주세요!');
     
+    // 💡 DB에 저장할 때도 room_part로 우회해서 저장합니다.
     const { error } = await supabase
       .from('rooms')
       .insert([{ 
         title: newRoomTitle.trim(), 
         theme: roomTheme, 
-        part_name: loginPart 
+        room_part: loginPart 
       }]);
 
     if (error) {
       alert('방 생성 실패: ' + error.message);
-      console.error(error);
     } else {
       setNewRoomTitle('');
       fetchRooms();
@@ -98,12 +99,9 @@ export default function AdminPage() {
 
   const handleDeleteRoom = async (roomId: string) => {
     if (!confirm('방을 삭제하시겠습니까?')) return;
-    const { error } = await supabase.from('rooms').delete().eq('id', roomId);
-    if (error) alert('삭제 실패: ' + error.message);
-    else {
-      if (selectedRoomId === roomId) setSelectedRoomId(null);
-      fetchRooms();
-    }
+    await supabase.from('rooms').delete().eq('id', roomId);
+    if (selectedRoomId === roomId) setSelectedRoomId(null);
+    fetchRooms();
   };
 
   const handleSaveQuestion = async () => {
