@@ -16,7 +16,7 @@ export default function AdminPage() {
   const [newRoomTitle, setNewRoomTitle] = useState('');
   const [roomTheme, setRoomTheme] = useState<'dark' | 'light'>('dark');
   const [newQuestionTitle, setNewQuestionTitle] = useState('');
-  const [newSubtitle, setNewSubtitle] = useState(''); // 소제목 상태 추가
+  const [newSubtitle, setNewSubtitle] = useState('');
   const [questionType, setQuestionType] = useState('word_cloud');
   const [options, setOptions] = useState(['', '']);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -24,14 +24,23 @@ export default function AdminPage() {
   useEffect(() => { if (isLoggedIn) fetchRooms(); }, [isLoggedIn]);
   useEffect(() => { if (selectedRoomId) fetchQuestions(selectedRoomId); }, [selectedRoomId]);
 
-  // 💡 2. 로그인 처리 함수 (비밀번호: 1234)
+  // 💡 2. 파트별 비밀번호 설정 (여기서 원하는 비밀번호로 변경하세요)
   const handleLogin = () => {
-    if (password === '1234') setIsLoggedIn(true);
-    else alert('비밀번호가 일치하지 않습니다.');
+    const passwords: { [key: string]: string } = {
+      'A': 'dnjflzj61', // A파트 비밀번호
+      'B': 'dnjqoszj61', // B파트 비밀번호
+      'C': 'qhswlf61', // C파트 비밀번호
+      'D': 'flqkdlqm61', // D파트 비밀번호
+    };
+
+    if (password === passwords[loginPart]) {
+      setIsLoggedIn(true);
+    } else {
+      alert('비밀번호가 일치하지 않습니다.');
+    }
   };
 
   const fetchRooms = async () => {
-    // 현재 선택한 파트(A, B, C, D)의 방만 불러옵니다.
     const { data } = await supabase.from('rooms').select('*').eq('part_name', loginPart).order('created_at', { ascending: false });
     if (data) setRooms(data);
   };
@@ -90,7 +99,7 @@ export default function AdminPage() {
     window.open(`/display/${selectedRoomId}`, '_blank');
   };
 
-  // 💡 로그인 전 화면
+  // 로그인 전 화면
   if (!isLoggedIn) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-100 font-sans">
@@ -106,14 +115,14 @@ export default function AdminPage() {
             ))}
           </div>
 
-          <input type="password" placeholder="비밀번호 입력 (기본: 1234)" className="w-full border-2 border-slate-200 p-4 rounded-xl mb-4 text-center focus:border-slate-900 focus:outline-none" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+          <input type="password" placeholder="비밀번호 입력" className="w-full border-2 border-slate-200 p-4 rounded-xl mb-4 text-center focus:border-slate-900 focus:outline-none" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
           <button onClick={handleLogin} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-black transition">관리자 로그인</button>
         </div>
       </div>
     );
   }
 
-  // 💡 로그인 후 기존 대시보드 화면
+  // 로그인 후 대시보드 화면
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
       <div className="w-96 bg-white border-r border-slate-200 p-6 flex flex-col">
@@ -166,7 +175,6 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              {/* 💡 소제목 입력칸 추가 */}
               <input className="w-full border border-slate-300 p-3.5 rounded-xl mb-3 bg-slate-50 focus:bg-white transition" placeholder="소제목을 입력하세요 (예: Session 1. 아이스브레이킹)" value={newSubtitle} onChange={(e) => setNewSubtitle(e.target.value)} />
 
               <textarea 
