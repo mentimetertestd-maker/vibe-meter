@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase'; 
 
 export default function AdminPage() {
-  // 💡 1. 로그인 및 파트 관리 상태
+  // 💡 1. 파트 목록 및 상태 정의 (요청하신 파트 이름 반영)
+  const PART_LIST = ['워리커', '워밴커', '본질', '리바이브'];
+
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loginPart, setLoginPart] = useState('A');
+  const [loginPart, setLoginPart] = useState('워리커');
   const [password, setPassword] = useState('');
 
   const [rooms, setRooms] = useState<any[]>([]);
@@ -21,16 +23,16 @@ export default function AdminPage() {
   const [options, setOptions] = useState(['', '']);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  useEffect(() => { if (isLoggedIn) fetchRooms(); }, [isLoggedIn]);
+  useEffect(() => { if (isLoggedIn) fetchRooms(); }, [isLoggedIn, loginPart]);
   useEffect(() => { if (selectedRoomId) fetchQuestions(selectedRoomId); }, [selectedRoomId]);
 
-  // 💡 2. 파트별 비밀번호 설정 (여기서 원하는 비밀번호로 변경하세요)
+  // 💡 2. 파트별 비밀번호 설정 (원하는 비밀번호로 자유롭게 수정 가능)
   const handleLogin = () => {
     const passwords: { [key: string]: string } = {
-      'A': 'dnjflzj61', // A파트 비밀번호
-      'B': 'dnjqoszj61', // B파트 비밀번호
-      'C': 'qhswlf61', // C파트 비밀번호
-      'D': 'flqkdlqm61', // D파트 비밀번호
+      '워리커': '1111',   // 워리커 파트 비밀번호 (영문/숫자 혼용 가능)
+      '워밴커': '2222',   // 워밴커 파트 비밀번호
+      '본질': '3333',     // 본질 파트 비밀번호
+      '리바이브': '4444', // 리바이브 파트 비밀번호
     };
 
     if (password === passwords[loginPart]) {
@@ -40,27 +42,70 @@ export default function AdminPage() {
     }
   };
 
+  // 💡 3. 로그아웃 처리 함수
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setPassword('');
+    setSelectedRoomId(null);
+    setRooms([]);
+    setQuestions([]);
+  };
+
   const fetchRooms = async () => {
-    const { data } = await supabase.from('rooms').select('*').eq('part_name', loginPart).order('created_at', { ascending: false });
-    if (data) setRooms(data);
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('part_name', loginPart)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('방 불러오기 오류:', error);
+    } else if (data) {
+      setRooms(data);
+    }
   };
 
   const fetchQuestions = async (roomId: string) => {
-    const { data } = await supabase.from('questions').select('*').eq('room_id', roomId).order('sort_order', { ascending: true });
-    if (data) setQuestions(data);
+    const { data, error } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('room_id', roomId)
+      .order('sort_order', { ascending: true });
+    
+    if (error) console.error('질문 불러오기 오류:', error);
+    else if (data) setQuestions(data);
   };
 
   const handleCreateRoom = async () => {
     if (!newRoomTitle.trim()) return alert('방 이름을 입력해주세요!');
-    await supabase.from('rooms').insert([{ title: newRoomTitle, theme: roomTheme, part_name: loginPart }]);
-    setNewRoomTitle(''); fetchRooms();
+
+    const { data, error } = await supabase
+      .from('rooms')
+      .insert([{ 
+        title: newRoomTitle.trim(), 
+        theme: roomTheme, 
+        part_name: loginPart 
+      }])
+      .select();
+
+    if (error) {
+      alert('방 생성에 실패했습니다: ' + error.message);
+      console.error(error);
+    } else {
+      setNewRoomTitle('');
+      fetchRooms();
+    }
   };
 
   const handleDeleteRoom = async (roomId: string) => {
     if (!confirm('방을 삭제하시겠습니까?')) return;
-    await supabase.from('rooms').delete().eq('id', roomId);
-    if (selectedRoomId === roomId) setSelectedRoomId(null);
-    fetchRooms();
+    const { error } = await supabase.from('rooms').delete().eq('id', roomId);
+    if (error) {
+      alert('삭제 실패: ' + error.message);
+    } else {
+      if (selectedRoomId === roomId) setSelectedRoomId(null);
+      fetchRooms();
+    }
   };
 
   const handleSaveQuestion = async () => {
@@ -70,14 +115,34 @@ export default function AdminPage() {
     const filteredOptions = questionType === 'multiple_choice' ? options.filter(opt => opt.trim() !== '') : [];
     
     if (editingId) {
-      await supabase.from('questions').update({ title: newQuestionTitle, subtitle: newSubtitle, type: questionType, options: filteredOptions }).eq('id', editingId);
-      alert('수정되었습니다!');
+      const { error } = await supabase.from('questions').update({ 
+        title: newQuestionTitle, 
+        subtitle: newSubtitle, 
+        type: questionType, 
+        options: filteredOptions 
+      }).eq('id', editingId);
+
+      if (error) alert('수정 실패: ' + error.message);
+      else alert('수정되었습니다!');
     } else {
       const nextOrder = questions.length + 1;
-      await supabase.from('questions').insert([{ room_id: selectedRoomId, title: newQuestionTitle, subtitle: newSubtitle, sort_order: nextOrder, type: questionType, options: filteredOptions }]);
+      const { error } = await supabase.from('questions').insert([{ 
+        room_id: selectedRoomId, 
+        title: newQuestionTitle, 
+        subtitle: newSubtitle, 
+        sort_order: nextOrder, 
+        type: questionType, 
+        options: filteredOptions 
+      }]);
+
+      if (error) alert('질문 저장 실패: ' + error.message);
     }
 
-    setNewQuestionTitle(''); setNewSubtitle(''); setOptions(['', '']); setEditingId(null); setQuestionType('word_cloud');
+    setNewQuestionTitle(''); 
+    setNewSubtitle(''); 
+    setOptions(['', '']); 
+    setEditingId(null); 
+    setQuestionType('word_cloud');
     fetchQuestions(selectedRoomId);
   };
 
@@ -99,7 +164,7 @@ export default function AdminPage() {
     window.open(`/display/${selectedRoomId}`, '_blank');
   };
 
-  // 로그인 전 화면
+  // 💡 로그인 전 화면
   if (!isLoggedIn) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-100 font-sans">
@@ -107,32 +172,59 @@ export default function AdminPage() {
           <h1 className="text-3xl font-black text-slate-900 mb-2">Isaiah6tyOne</h1>
           <p className="text-slate-500 mb-8 text-sm">운영할 파트를 선택하고 로그인하세요</p>
           
-          <div className="flex justify-center gap-2 mb-6">
-            {['A', 'B', 'C', 'D'].map(part => (
-              <button key={part} onClick={() => setLoginPart(part)} className={`w-12 h-12 rounded-xl font-bold text-lg transition ${loginPart === part ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+          <div className="grid grid-cols-2 gap-2 mb-6">
+            {PART_LIST.map(part => (
+              <button 
+                key={part} 
+                onClick={() => setLoginPart(part)} 
+                className={`py-3 rounded-xl font-bold text-sm transition ${loginPart === part ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+              >
                 {part}
               </button>
             ))}
           </div>
 
-          <input type="password" placeholder="비밀번호 입력" className="w-full border-2 border-slate-200 p-4 rounded-xl mb-4 text-center focus:border-slate-900 focus:outline-none" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
-          <button onClick={handleLogin} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-black transition">관리자 로그인</button>
+          <input 
+            type="password" 
+            placeholder="비밀번호 입력" 
+            className="w-full border-2 border-slate-200 p-4 rounded-xl mb-4 text-center focus:border-slate-900 focus:outline-none" 
+            value={password} 
+            onChange={(e) => setPassword(e.target.value)} 
+            onKeyDown={(e) => e.key === 'Enter' && handleLogin()} 
+          />
+          <button onClick={handleLogin} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-black transition">
+            {loginPart} 파트 로그인
+          </button>
         </div>
       </div>
     );
   }
 
-  // 로그인 후 대시보드 화면
+  // 💡 로그인 후 대시보드 화면
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
       <div className="w-96 bg-white border-r border-slate-200 p-6 flex flex-col">
         <div className="flex justify-between items-center mb-6">
-          <div className="text-2xl font-black text-slate-900 tracking-tight">Isaiah6tyOne</div>
-          <div className="bg-slate-900 text-white px-3 py-1 rounded-lg text-sm font-bold">Part {loginPart}</div>
+          <div>
+            <div className="text-2xl font-black text-slate-900 tracking-tight">Isaiah6tyOne</div>
+            <div className="text-xs font-bold text-violet-600 mt-0.5">{loginPart} 파트 관리 중</div>
+          </div>
+          {/* 💡 로그아웃 버튼 */}
+          <button 
+            onClick={handleLogout} 
+            className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition"
+          >
+            로그아웃
+          </button>
         </div>
         
         <div className="space-y-3 mb-6">
-          <input className="w-full border border-slate-300 p-3 rounded-xl text-sm" placeholder="새 방 이름..." value={newRoomTitle} onChange={(e) => setNewRoomTitle(e.target.value)} />
+          <input 
+            className="w-full border border-slate-300 p-3 rounded-xl text-sm" 
+            placeholder="새 방 이름..." 
+            value={newRoomTitle} 
+            onChange={(e) => setNewRoomTitle(e.target.value)} 
+          />
           <div className="flex items-center justify-between bg-slate-100 p-1.5 rounded-xl">
             <span className="text-xs font-bold text-slate-500 pl-2">테마 모드</span>
             <div className="flex gap-1">
@@ -155,7 +247,7 @@ export default function AdminPage() {
 
       <div className="flex-1 p-10 bg-slate-50 overflow-y-auto">
         {!selectedRoomId ? (
-          <div className="flex items-center justify-center h-full text-slate-400 font-medium">👈 왼쪽에서 방을 선택해주세요.</div>
+          <div className="flex items-center justify-center h-full text-slate-400 font-medium">👈 왼쪽에서 방을 선택하거나 새 방을 생성해주세요.</div>
         ) : (
           <div className="max-w-3xl mx-auto">
             <div className="flex justify-between items-center mb-8">
