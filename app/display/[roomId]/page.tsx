@@ -51,7 +51,6 @@ export default function DisplayPage() {
 
   const currentQ = questions[currentIndex];
 
-  // 💬 Q&A 답변 시간 순서대로 정렬 (created_at ascending)
   useEffect(() => {
     if (!currentQ?.id) return;
     const fetchAnswers = async () => {
@@ -109,6 +108,24 @@ export default function DisplayPage() {
 
   return (
     <div className={`flex flex-col h-screen font-sans overflow-hidden transition-colors duration-500 ${bgColor} ${textColor}`}>
+      
+      {/* ☁️ 구름 애니메이션 스타일 추가 */}
+      <style jsx global>{`
+        @keyframes floatSlow {
+          0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
+          50% { transform: translate(-50%, -50%) translateY(-8px); }
+        }
+        @keyframes cloudPop {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+          70% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+          100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        .cloud-item {
+          animation: cloudPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, floatSlow 4s ease-in-out infinite;
+          will-change: transform, opacity;
+        }
+      `}</style>
+
       {showBigQR && (
         <div className="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center cursor-pointer backdrop-blur-sm" onClick={() => setShowBigQR(false)}>
           <img src={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(joinUrl)}`} alt="큰 QR코드" className="w-80 h-80 md:w-96 md:h-96 rounded-3xl bg-white p-4 shadow-2xl" />
@@ -160,7 +177,7 @@ export default function DisplayPage() {
       {/* 전광판 슬라이드 내용 */}
       <div className="flex-1 relative overflow-hidden flex flex-col items-center justify-center px-6 pb-16">
         
-        {/* ☁️ 단어구름 (색상 랜덤) */}
+        {/* ☁️ 단어구름 (모션 및 몽실몽실 애니메이션 추가) */}
         {currentQ.type === 'word_cloud' && (
           <div className="w-full h-full relative">
             {answers.length === 0 ? (
@@ -185,8 +202,21 @@ export default function DisplayPage() {
                   zIndex = "z-20";
                 }
 
+                // 단어마다 떠다니는 타이밍(delay)을 살짝 다르게 줘서 더 자연스럽게 만듭니다
+                const animDelay = (idx * 0.25) % 2;
+
                 return (
-                  <div key={idx} style={{ position: 'absolute', top: pos.top, left: pos.left, transform: 'translate(-50%, -50%)', color: color }} className={`absolute select-none whitespace-nowrap ${sizeClass} ${zIndex}`}>
+                  <div 
+                    key={idx} 
+                    style={{ 
+                      position: 'absolute', 
+                      top: pos.top, 
+                      left: pos.left, 
+                      color: color,
+                      animationDelay: `0s, ${animDelay}s`
+                    }} 
+                    className={`cloud-item select-none whitespace-nowrap ${sizeClass} ${zIndex}`}
+                  >
                     <span>{item.text}</span>
                   </div>
                 );
@@ -203,7 +233,7 @@ export default function DisplayPage() {
               const percent = answers.length > 0 ? Math.round((count / answers.length) * 100) : 0;
               return (
                 <div key={idx} className={`border p-5 rounded-2xl relative overflow-hidden text-left shadow-sm ${cardBg} ${borderColor}`}>
-                  <div className={`absolute left-0 top-0 bottom-0 ${isLight ? 'bg-slate-200' : 'bg-neutral-800'}`} style={{ width: `${percent}%` }}></div>
+                  <div className={`absolute left-0 top-0 bottom-0 transition-all duration-500 ${isLight ? 'bg-slate-200' : 'bg-neutral-800'}`} style={{ width: `${percent}%` }}></div>
                   <div className="relative z-10 flex justify-between font-bold text-lg md:text-xl">
                     <span>{opt}</span>
                     <span className={subTextColor}>{count}명 ({percent}%)</span>
@@ -214,14 +244,14 @@ export default function DisplayPage() {
           </div>
         )}
 
-        {/* 💬 익명 Q&A (시간 순서 정렬 & 줄바꿈 지원) */}
+        {/* 💬 익명 Q&A */}
         {currentQ.type === 'qna' && (
           <div className="w-full max-w-4xl h-full overflow-y-auto flex flex-col items-center gap-4 z-10 p-2">
             {answers.length === 0 ? (
               <div className={`h-full flex items-center justify-center text-lg ${subTextColor}`}>아직 제출된 답변이 없습니다.</div>
             ) : (
               answers.map((ans, idx) => (
-                <div key={idx} className={`w-full border px-6 py-5 rounded-2xl text-lg md:text-xl font-medium text-left shadow-sm whitespace-pre-wrap break-keep leading-relaxed tracking-wide ${cardBg} ${borderColor}`}>
+                <div key={idx} className={`w-full border px-6 py-5 rounded-2xl text-lg md:text-xl font-medium text-left shadow-sm whitespace-pre-wrap break-keep leading-relaxed tracking-wide ${cardBg} ${borderColor} transition-all duration-300`}>
                   {ans.answer_text}
                 </div>
               ))
