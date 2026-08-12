@@ -1,69 +1,122 @@
-                const animDelay = (idx * 0.2) % 2;
+'use client';
 
-                return (
-                  <div 
-                    key={item.text} 
-                    style={{ 
-                      position: 'absolute', 
-                      top: pos.top, 
-                      left: pos.left, 
-                      color: color,
-                      animationDelay: `0s, ${animDelay}s`
-                    }} 
-                    className={`cloud-item select-none whitespace-nowrap transition-all duration-500 ${sizeClass} ${zIndex}`}
-                  >
-                    <span>{item.text}</span>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { useParams } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
-        {/* 📊 객관식 */}
-        {currentQ.type === 'multiple_choice' && (
-          <div className="w-full max-w-2xl space-y-3.5 z-10 overflow-y-auto max-h-full py-2">
-            {currentQ.options?.map((opt: string, idx: number) => {
-              const count = answers.filter(a => a.answer_text === opt).length;
-              const percent = answers.length > 0 ? Math.round((count / answers.length) * 100) : 0;
-              return (
-                <div key={idx} className={`border p-5 rounded-2xl relative overflow-hidden text-left shadow-sm ${cardBg} ${borderColor}`}>
-                  <div className={`absolute left-0 top-0 bottom-0 transition-all duration-500 ${isLight ? 'bg-slate-200' : 'bg-neutral-800'}`} style={{ width: `${percent}%` }}></div>
-                  <div className="relative z-10 flex justify-between font-bold text-lg md:text-xl">
-                    <span>{opt}</span>
-                    <span className={subTextColor}>{count}명 ({percent}%)</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+// 🎨 단어구름 알록달록 무지개 색상 팔레트
+const COLOR_PALETTE = [
+  '#f87171', '#fb923c', '#fbbf24', '#34d399', 
+  '#22d3ee', '#818cf8', '#c084fc', '#f472b6', 
+  '#38bdf8', '#a3e635', '#4ade80', '#e879f9'
+];
 
-        {/* 💬 익명 Q&A (자동 스크롤 탑 기능 적용) */}
-        {currentQ.type === 'qna' && (
-          <div ref={qnaScrollRef} className="w-full max-w-4xl h-full overflow-y-auto flex flex-col items-center gap-4 z-10 p-2 scroll-smooth">
-            {answers.length === 0 ? (
-              <div className={`h-full flex items-center justify-center text-lg ${subTextColor}`}>아직 제출된 답변이 없습니다.</div>
-            ) : (
-              answers.map((ans, idx) => (
-                <div key={idx} className={`w-full border px-6 py-5 rounded-2xl text-lg md:text-xl font-medium text-left shadow-sm whitespace-pre-wrap break-keep leading-relaxed tracking-wide ${cardBg} ${borderColor} transition-all duration-300`}>
-                  {ans.answer_text}
-                </div>
-              ))
-            )}
-          </div>
-        )}
+export default function DisplayPage() {
+  const params = useParams();
+  const roomId = params.roomId as string;
 
-        <div className={`absolute bottom-3 z-20 text-xs font-bold px-4 py-2 rounded-full border shadow-sm ${cardBg} ${borderColor} ${subTextColor}`}>
-          총 참여 응답: <span className={`font-black ${textColor}`}>{answers.length}</span>개
-        </div>
-      </div>
+  const [room, setRoom] = useState<any>(null);
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [joinUrl, setJoinUrl] = useState('');
+  const [showBigQR, setShowBigQR] = useState(false);
+  const [answers, setAnswers] = useState<any[]>([]);
 
-      {/* 하단 버튼 */}
-      <div className={`p-4 flex justify-center gap-6 border-t z-30 flex-shrink-0 ${borderColor}`}>
-        <button onClick={prevSlide} disabled={currentIndex === 0} className={`px-7 py-3 rounded-2xl font-bold transition text-sm border disabled:opacity-30 ${isLight ? 'bg-white border-slate-300 hover:bg-slate-100' : 'bg-neutral-900 border-neutral-800 hover:bg-neutral-800'}`}>◀ 이전</button>
-        <button onClick={nextSlide} disabled={currentIndex === questions.length - 1} className={`px-7 py-3 rounded-2xl font-bold transition text-sm disabled:opacity-30 ${isLight ? 'bg-slate-900 text-white' : 'bg-white text-black'}`}>다음 ▶</button>
-      </div>
-    </div>
-  );
-}
+  // 📜 Q&A 답변 스크롤 영역 제어를 위한 Ref
+  const qnaScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && roomId) {
+      setJoinUrl(`${window.location.origin}/join/${roomId}`);
+    }
+  }, [roomId]);
+
+  useEffect(() => {
+    if (!roomId) return;
+    const fetchData = async () => {
+      const { data: roomData } = await supabase.from('rooms').select('*').eq('id', roomId).single();
+      if (roomData) setRoom(roomData);
+
+      const { data: qData } = await supabase.from('questions').select('*').eq('room_id', roomId).order('sort_order', { ascending: true });
+      if (qData) setQuestions(qData);
+      setLoading(false);
+    };
+    fetchData();
+  }, [roomId]);
+
+  useEffect(() => {
+    if (questions.length > 0 && roomId) {
+      const activeQuestionId = questions[currentIndex].id;
+      supabase.from('rooms').update({ active_question_id: activeQuestionId }).eq('id', roomId).then();
+    }
+  }, [currentIndex, questions, roomId]);
+
+  const currentQ = questions[currentIndex];
+
+  // 💡 질문 슬라이드가 변경되면 스크롤을 맨 위로 강제 이동
+  useEffect(() => {
+    if (qnaScrollRef.current) {
+      qnaScrollRef.current.scrollTop = 0;
+    }
+  }, [currentIndex]);
+
+  useEffect(() => {
+    if (!currentQ?.id) return;
+    const fetchAnswers = async () => {
+      const { data } = await supabase.from('answers').select('*').eq('question_id', currentQ.id).order('created_at', { ascending: true });
+      if (data) setAnswers(data);
+    };
+    fetchAnswers();
+    const interval = setInterval(fetchAnswers, 1000);
+    return () => clearInterval(interval);
+  }, [currentQ?.id]);
+
+  const getWordCloudData = () => {
+    const counts: { [key: string]: number } = {};
+    answers.forEach((ans) => {
+      const word = ans.answer_text.trim();
+      if (word) counts[word] = (counts[word] || 0) + 1;
+    });
+    return Object.entries(counts).map(([text, count]) => ({ text, count })).sort((a, b) => b.count - a.count);
+  };
+
+  const wordList = getWordCloudData();
+
+  // 💡 단어별 고유 색상 고정
+  const wordColors = useMemo(() => {
+    const colorMap: { [key: string]: string } = {};
+    wordList.forEach(({ text }) => {
+      if (!colorMap[text]) {
+        const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        colorMap[text] = COLOR_PALETTE[Math.abs(hash) % COLOR_PALETTE.length];
+      }
+    });
+    return colorMap;
+  }, [wordList.map(w => w.text).join(',')]);
+
+  // 💡 밀집형 나선 좌표 알고리즘
+  const getTightPosition = (index: number, text: string) => {
+    if (index === 0) return { top: '50%', left: '50%' };
+    const angle = index * 2.2; 
+    const radius = 5 + Math.sqrt(index) * 8.5; 
+    const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const jitterX = ((hash % 3) - 1);
+    const jitterY = (((hash * 3) % 3) - 1);
+    const x = 50 + radius * Math.cos(angle) + jitterX;
+    const y = 50 + radius * Math.sin(angle) * 0.65 + jitterY; 
+    return { top: `${Math.max(18, Math.min(82, y))}%`, left: `${Math.max(15, Math.min(85, x))}%` };
+  };
+
+  if (loading) return <div className="flex h-screen items-center justify-center bg-black text-white text-xl font-bold">로딩중...</div>;
+  if (questions.length === 0) return <div className="flex h-screen items-center justify-center bg-black text-white text-xl font-bold">등록된 질문이 없습니다.</div>;
+
+  const nextSlide = () => { if (currentIndex < questions.length - 1) setCurrentIndex(currentIndex + 1); };
+  const prevSlide = () => { if (currentIndex > 0) setCurrentIndex(currentIndex - 1); };
+
+  const isLight = room?.theme === 'light';
+  const textColor = isLight ? 'text-slate-900' : 'text-white';
+  const subTextColor = isLight ? 'text-slate-500' : 'text-neutral-400';
+  const bgColor = isLight ? 'bg-white' : 'bg-black';
+  const borderColor = isLight ? 'border-slate-200' : 'border-neutral-800';
+  const cardBg = isLight ? 'bg-white' : 'bg-neutral-900/60';
