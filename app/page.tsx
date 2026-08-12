@@ -52,18 +52,26 @@ export default function AdminPage() {
   };
 
   const fetchRooms = async () => {
-    const { data, error } = await supabase.from('rooms').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('*')
+      .order('created_at', { ascending: false });
+      
     if (error) {
       console.error('방 불러오기 오류:', error);
     } else if (data) {
-      // 스키마 에러를 피하기 위해 JS단에서 파트별 필터링
-      const filteredRooms = data.filter((r: any) => (r.part_name || '워리커') === loginPart);
-      setRooms(filteredRooms);
+      const filtered = data.filter((r: any) => (r.part_name || '워리커') === loginPart);
+      setRooms(filtered);
     }
   };
 
   const fetchQuestions = async (roomId: string) => {
-    const { data, error } = await supabase.from('questions').select('*').eq('room_id', roomId).order('sort_order', { ascending: true });
+    const { data, error } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('room_id', roomId)
+      .order('sort_order', { ascending: true });
+      
     if (error) console.error('질문 불러오기 오류:', error);
     else if (data) setQuestions(data);
   };
@@ -71,27 +79,17 @@ export default function AdminPage() {
   const handleCreateRoom = async () => {
     if (!newRoomTitle.trim()) return alert('방 이름을 입력해주세요!');
     
-    // 💡 1순위: DB 직통 RPC 함수 호출 (스키마 캐시 우회)
-    const { error: rpcError } = await supabase.rpc('create_room_func', {
-      p_title: newRoomTitle.trim(),
-      p_theme: roomTheme,
-      p_part_name: loginPart
-    });
-
-    if (rpcError) {
-      // 💡 2순위: RPC 미생성 시 일반 insert로 시도
-      const { error: insertError } = await supabase.from('rooms').insert([{ 
+    const { error } = await supabase
+      .from('rooms')
+      .insert([{ 
         title: newRoomTitle.trim(), 
         theme: roomTheme, 
         part_name: loginPart 
       }]);
-      
-      if (insertError) {
-        alert('방 생성 실패: ' + insertError.message);
-      } else {
-        setNewRoomTitle('');
-        fetchRooms();
-      }
+
+    if (error) {
+      alert('방 생성 실패: ' + error.message);
+      console.error(error);
     } else {
       setNewRoomTitle('');
       fetchRooms();
@@ -100,9 +98,12 @@ export default function AdminPage() {
 
   const handleDeleteRoom = async (roomId: string) => {
     if (!confirm('방을 삭제하시겠습니까?')) return;
-    await supabase.from('rooms').delete().eq('id', roomId);
-    if (selectedRoomId === roomId) setSelectedRoomId(null);
-    fetchRooms();
+    const { error } = await supabase.from('rooms').delete().eq('id', roomId);
+    if (error) alert('삭제 실패: ' + error.message);
+    else {
+      if (selectedRoomId === roomId) setSelectedRoomId(null);
+      fetchRooms();
+    }
   };
 
   const handleSaveQuestion = async () => {
@@ -112,14 +113,34 @@ export default function AdminPage() {
     const filteredOptions = questionType === 'multiple_choice' ? options.filter(opt => opt.trim() !== '') : [];
     
     if (editingId) {
-      await supabase.from('questions').update({ title: newQuestionTitle, subtitle: newSubtitle, type: questionType, options: filteredOptions }).eq('id', editingId);
-      alert('수정되었습니다!');
+      const { error } = await supabase.from('questions').update({ 
+        title: newQuestionTitle, 
+        subtitle: newSubtitle, 
+        type: questionType, 
+        options: filteredOptions 
+      }).eq('id', editingId);
+
+      if (error) alert('수정 실패: ' + error.message);
+      else alert('수정되었습니다!');
     } else {
       const nextOrder = questions.length + 1;
-      await supabase.from('questions').insert([{ room_id: selectedRoomId, title: newQuestionTitle, subtitle: newSubtitle, sort_order: nextOrder, type: questionType, options: filteredOptions }]);
+      const { error } = await supabase.from('questions').insert([{ 
+        room_id: selectedRoomId, 
+        title: newQuestionTitle, 
+        subtitle: newSubtitle, 
+        sort_order: nextOrder, 
+        type: questionType, 
+        options: filteredOptions 
+      }]);
+
+      if (error) alert('저장 실패: ' + error.message);
     }
 
-    setNewQuestionTitle(''); setNewSubtitle(''); setOptions(['', '']); setEditingId(null); setQuestionType('word_cloud');
+    setNewQuestionTitle(''); 
+    setNewSubtitle(''); 
+    setOptions(['', '']); 
+    setEditingId(null); 
+    setQuestionType('word_cloud');
     fetchQuestions(selectedRoomId);
   };
 
@@ -133,7 +154,9 @@ export default function AdminPage() {
   };
 
   const updateOption = (index: number, value: string) => {
-    const newOptions = [...options]; newOptions[index] = value; setOptions(newOptions);
+    const newOptions = [...options]; 
+    newOptions[index] = value; 
+    setOptions(newOptions);
   };
 
   const handleOpenDisplay = () => {
@@ -167,14 +190,27 @@ export default function AdminPage() {
           
           <div className="grid grid-cols-2 gap-2 mb-6">
             {PART_LIST.map(part => (
-              <button key={part} onClick={() => setLoginPart(part)} className={`py-3 rounded-xl font-bold text-sm transition ${loginPart === part ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+              <button 
+                key={part} 
+                onClick={() => setLoginPart(part)} 
+                className={`py-3 rounded-xl font-bold text-sm transition ${loginPart === part ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+              >
                 {part}
               </button>
             ))}
           </div>
 
-          <input type="password" placeholder="비밀번호 입력" className="w-full border-2 border-slate-200 p-4 rounded-xl mb-4 text-center focus:border-slate-900 focus:outline-none" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
-          <button onClick={handleLogin} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-black transition">{loginPart} 파트 로그인</button>
+          <input 
+            type="password" 
+            placeholder="비밀번호 입력" 
+            className="w-full border-2 border-slate-200 p-4 rounded-xl mb-4 text-center focus:border-slate-900 focus:outline-none" 
+            value={password} 
+            onChange={(e) => setPassword(e.target.value)} 
+            onKeyDown={(e) => e.key === 'Enter' && handleLogin()} 
+          />
+          <button onClick={handleLogin} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-black transition">
+            {loginPart} 파트 로그인
+          </button>
         </div>
       </div>
     );
@@ -305,7 +341,7 @@ export default function AdminPage() {
               <input className="w-full border border-slate-300 p-3.5 rounded-xl mb-3 bg-slate-50 focus:bg-white transition" placeholder="소제목을 입력하세요 (예: Session 1. 아이스브레이킹)" value={newSubtitle} onChange={(e) => setNewSubtitle(e.target.value)} />
 
               <textarea 
-                className="w-full border border-slate-300 p-3.5 rounded-xl mb-4 bg-slate-50 focus:bg-white transition resize-none whitespace-pre-wrap" 
+                className="w-full border border-slate-300 p-3.5 rounded-xl mb-4 bg-slate-50 focus:bg-white transition resize-none whitespace-pre-wrap leading-relaxed" 
                 rows={3} placeholder="메인 질문을 입력하세요... (엔터키로 줄바꿈 가능)" value={newQuestionTitle} onChange={(e) => setNewQuestionTitle(e.target.value)} 
               />
 
@@ -327,7 +363,7 @@ export default function AdminPage() {
                   <div className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0">Slide {q.sort_order}</div>
                   <div className="flex-1">
                     {q.subtitle && <div className="text-sm font-bold text-slate-400 mb-1">{q.subtitle}</div>}
-                    <div className="font-semibold text-slate-800 text-lg mb-2 whitespace-pre-wrap break-keep">{q.title}</div>
+                    <div className="font-semibold text-slate-800 text-lg mb-2 whitespace-pre-wrap break-keep leading-relaxed">{q.title}</div>
                     <div className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md w-fit">{q.type === 'word_cloud' ? '단어구름' : q.type === 'multiple_choice' ? '객관식' : 'Q&A'}</div>
                   </div>
                   <button onClick={() => handleEditClick(q)} className="text-slate-600 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-xl text-sm font-bold transition">수정</button>
