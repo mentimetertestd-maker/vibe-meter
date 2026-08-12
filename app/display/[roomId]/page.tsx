@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
@@ -22,6 +22,9 @@ export default function DisplayPage() {
   const [joinUrl, setJoinUrl] = useState('');
   const [showBigQR, setShowBigQR] = useState(false);
   const [answers, setAnswers] = useState<any[]>([]);
+
+  // 📜 Q&A 답변 스크롤 영역 제어를 위한 Ref
+  const qnaScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && roomId) {
@@ -51,6 +54,13 @@ export default function DisplayPage() {
 
   const currentQ = questions[currentIndex];
 
+  // 💡 질문 슬라이드가 변경되면 스크롤을 맨 위로 강제 이동
+  useEffect(() => {
+    if (qnaScrollRef.current) {
+      qnaScrollRef.current.scrollTop = 0;
+    }
+  }, [currentIndex]);
+
   useEffect(() => {
     if (!currentQ?.id) return;
     const fetchAnswers = async () => {
@@ -73,7 +83,7 @@ export default function DisplayPage() {
 
   const wordList = getWordCloudData();
 
-  // 💡 단어별 고유 색상 완전 고정 (useMemo 적용)
+  // 💡 단어별 고유 색상 고정 (useMemo 적용)
   const wordColors = useMemo(() => {
     const colorMap: { [key: string]: string } = {};
     wordList.forEach(({ text }) => {
@@ -85,12 +95,12 @@ export default function DisplayPage() {
     return colorMap;
   }, [wordList.map(w => w.text).join(',')]);
 
-  // 💡 더 한곳으로 촘촘히 뭉치게 고친 나선형 알고리즘
+  // 💡 밀집형 나선 좌표 알고리즘
   const getTightPosition = (index: number, text: string) => {
     if (index === 0) return { top: '50%', left: '50%' };
 
     const angle = index * 2.2; 
-    const radius = 5 + Math.sqrt(index) * 8.5; // 반경 대폭 축소로 완전 밀집
+    const radius = 5 + Math.sqrt(index) * 8.5; 
 
     const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const jitterX = ((hash % 3) - 1);
@@ -134,7 +144,7 @@ export default function DisplayPage() {
         }
       `}</style>
 
-      {/* 📱 QR 코드 최상위 레이어 지정 (z-[9999]) */}
+      {/* 📱 QR 코드 최상위 레이어 (z-[9999]) */}
       {showBigQR && (
         <div className="fixed inset-0 bg-black/95 z-[9999] flex flex-col items-center justify-center cursor-pointer backdrop-blur-md" onClick={() => setShowBigQR(false)}>
           <img src={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(joinUrl)}`} alt="큰 QR코드" className="w-80 h-80 md:w-96 md:h-96 rounded-3xl bg-white p-4 shadow-2xl relative z-[10000]" />
@@ -196,7 +206,7 @@ export default function DisplayPage() {
             ) : (
               wordList.map((item, idx) => {
                 const pos = getTightPosition(idx, item.text);
-                const color = wordColors[item.text] || '#38bdf8'; // 절대 안 바뀌는 고정 색상
+                const color = wordColors[item.text] || '#38bdf8'; 
                 
                 let sizeClass = "text-lg md:text-xl font-medium opacity-80";
                 let zIndex = "z-10";
@@ -256,9 +266,9 @@ export default function DisplayPage() {
           </div>
         )}
 
-        {/* 💬 익명 Q&A */}
+        {/* 💬 익명 Q&A (자동 스크롤 탑 기능 적용) */}
         {currentQ.type === 'qna' && (
-          <div className="w-full max-w-4xl h-full overflow-y-auto flex flex-col items-center gap-4 z-10 p-2">
+          <div ref={qnaScrollRef} className="w-full max-w-4xl h-full overflow-y-auto flex flex-col items-center gap-4 z-10 p-2 scroll-smooth">
             {answers.length === 0 ? (
               <div className={`h-full flex items-center justify-center text-lg ${subTextColor}`}>아직 제출된 답변이 없습니다.</div>
             ) : (
