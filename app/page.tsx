@@ -54,7 +54,7 @@ export default function AdminPage() {
   const fetchRooms = async () => {
     const { data } = await supabase.from('rooms').select('*').order('created_at', { ascending: false });
     if (data) {
-      // 💡 현재 로그인한 팀의 방만 보이도록 필터링 (과거에 만들어진 방은 기본적으로 보이게 처리)
+      // 💡 현재 로그인한 파트와 동일한 방만 필터링해서 보여줌
       const filtered = data.filter((r: any) => (r.room_part || '워리커') === loginPart);
       setRooms(filtered);
     }
@@ -65,23 +65,19 @@ export default function AdminPage() {
     if (data) setQuestions(data);
   };
 
+  // 💡 방 생성 로직 수정: 1번 팀으로 넘어가는 안전장치 제거 및 정확한 에러 출력
   const handleCreateRoom = async () => {
     if (!newRoomTitle.trim()) return alert('방 이름을 입력해주세요!');
     
-    // 💡 1차 시도: 팀 정보(room_part) 포함해서 저장
-    let { error } = await supabase.from('rooms').insert([{ 
+    const { error } = await supabase.from('rooms').insert([{ 
       title: newRoomTitle.trim(), 
       theme: roomTheme, 
       room_part: loginPart 
     }]);
 
-    // 💡 2차 시도 (안전장치): room_part 컬럼 문제로 실패 시, 팀 정보 없이 기본 저장
     if (error) {
-      const fallback = await supabase.from('rooms').insert([{ 
-        title: newRoomTitle.trim(), 
-        theme: roomTheme 
-      }]);
-      if (fallback.error) return alert('방 생성 실패: ' + fallback.error.message);
+      alert(`방 생성 실패! 데이터베이스에 room_part 설정이 완료되지 않았습니다.\n에러내용: ${error.message}`);
+      return;
     }
     
     setNewRoomTitle(''); 
@@ -187,7 +183,6 @@ export default function AdminPage() {
           <h1 className="text-3xl font-black text-slate-900 mb-2">Isaiah6tyOne</h1>
           <p className="text-slate-500 mb-8 text-sm">운영할 파트를 선택하고 로그인하세요</p>
           
-          {/* 💡 파트 선택 버튼 영역 */}
           <div className="grid grid-cols-2 gap-2 mb-6">
             {PART_LIST.map(part => (
               <button 
@@ -231,7 +226,7 @@ export default function AdminPage() {
 
             <div className="p-6 md:p-10 overflow-y-auto print:overflow-visible flex-1">
               <div className="hidden print:block mb-8 pb-4 border-b-2 border-black">
-                <h1 className="text-3xl font-black">Isaiah6tyOne - {loginPart} 결과 보고서</h1>
+                <h1 className="text-3xl font-black">Isaiah6tyOne - {loginPart} 파트 결과 보고서</h1>
                 <p className="text-gray-500 mt-2">출력일시: {new Date().toLocaleString()}</p>
               </div>
 
