@@ -4,12 +4,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export default function AdminPage() {
-  const PART_LIST = ['워리커', '워밴커', '본질', '리바이브'];
-  
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loginPart, setLoginPart] = useState('워리커');
   const [password, setPassword] = useState('');
-
   const [rooms, setRooms] = useState<any[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<any[]>([]);
@@ -25,39 +21,20 @@ export default function AdminPage() {
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [resultsData, setResultsData] = useState<any[]>([]);
 
-  useEffect(() => { if (isLoggedIn) fetchRooms(); }, [isLoggedIn, loginPart]);
+  useEffect(() => { if (isLoggedIn) fetchRooms(); }, [isLoggedIn]);
   useEffect(() => { if (selectedRoomId) fetchQuestions(selectedRoomId); }, [selectedRoomId]);
 
   const handleLogin = () => {
-    const passwords: { [key: string]: string } = {
-      '워리커': '1111', 
-      '워밴커': '2222',
-      '본질': '3333',
-      '리바이브': '4444',
-    };
-
-    if (password === passwords[loginPart]) {
+    if (password === '6114') {
       setIsLoggedIn(true);
     } else {
       alert('비밀번호가 일치하지 않습니다.');
     }
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setPassword('');
-    setSelectedRoomId(null);
-    setRooms([]);
-    setQuestions([]);
-  };
-
   const fetchRooms = async () => {
     const { data } = await supabase.from('rooms').select('*').order('created_at', { ascending: false });
-    if (data) {
-      // 💡 현재 로그인한 파트와 동일한 방만 필터링해서 보여줌
-      const filtered = data.filter((r: any) => (r.room_part || '워리커') === loginPart);
-      setRooms(filtered);
-    }
+    if (data) setRooms(data);
   };
 
   const fetchQuestions = async (roomId: string) => {
@@ -65,23 +42,11 @@ export default function AdminPage() {
     if (data) setQuestions(data);
   };
 
-  // 💡 방 생성 로직 수정: 1번 팀으로 넘어가는 안전장치 제거 및 정확한 에러 출력
   const handleCreateRoom = async () => {
     if (!newRoomTitle.trim()) return alert('방 이름을 입력해주세요!');
-    
-    const { error } = await supabase.from('rooms').insert([{ 
-      title: newRoomTitle.trim(), 
-      theme: roomTheme, 
-      room_part: loginPart 
-    }]);
-
-    if (error) {
-      alert(`방 생성 실패! 데이터베이스에 room_part 설정이 완료되지 않았습니다.\n에러내용: ${error.message}`);
-      return;
-    }
-    
-    setNewRoomTitle(''); 
-    fetchRooms();
+    const { error } = await supabase.from('rooms').insert([{ title: newRoomTitle.trim(), theme: roomTheme }]);
+    if (error) alert('방 생성 실패: ' + error.message);
+    else { setNewRoomTitle(''); fetchRooms(); }
   };
 
   const handleDeleteRoom = async (roomId: string) => {
@@ -181,31 +146,9 @@ export default function AdminPage() {
       <div className="flex h-screen items-center justify-center bg-slate-100 font-sans">
         <div className="bg-white p-10 rounded-3xl shadow-xl w-full max-w-md text-center border border-slate-200">
           <h1 className="text-3xl font-black text-slate-900 mb-2">Isaiah6tyOne</h1>
-          <p className="text-slate-500 mb-8 text-sm">운영할 파트를 선택하고 로그인하세요</p>
-          
-          <div className="grid grid-cols-2 gap-2 mb-6">
-            {PART_LIST.map(part => (
-              <button 
-                key={part} 
-                onClick={() => setLoginPart(part)} 
-                className={`py-3 rounded-xl font-bold text-sm transition ${loginPart === part ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-              >
-                {part}
-              </button>
-            ))}
-          </div>
-
-          <input 
-            type="password" 
-            placeholder="비밀번호 입력" 
-            className="w-full border-2 border-slate-200 p-4 rounded-xl mb-4 text-center focus:border-slate-900 focus:outline-none" 
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)} 
-            onKeyDown={(e) => e.key === 'Enter' && handleLogin()} 
-          />
-          <button onClick={handleLogin} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-black transition shadow-lg">
-            {loginPart} 파트 로그인
-          </button>
+          <p className="text-slate-500 mb-8 text-sm">관리자 비밀번호를 입력하세요</p>
+          <input type="password" placeholder="비밀번호 입력 (기본: 1234)" className="w-full border-2 border-slate-200 p-4 rounded-xl mb-4 text-center focus:border-slate-900 focus:outline-none" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+          <button onClick={handleLogin} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-black transition">관리자 로그인</button>
         </div>
       </div>
     );
@@ -226,7 +169,7 @@ export default function AdminPage() {
 
             <div className="p-6 md:p-10 overflow-y-auto print:overflow-visible flex-1">
               <div className="hidden print:block mb-8 pb-4 border-b-2 border-black">
-                <h1 className="text-3xl font-black">Isaiah6tyOne - {loginPart} 파트 결과 보고서</h1>
+                <h1 className="text-3xl font-black">Isaiah6tyOne - 행사 결과 보고서</h1>
                 <p className="text-gray-500 mt-2">출력일시: {new Date().toLocaleString()}</p>
               </div>
 
@@ -280,13 +223,7 @@ export default function AdminPage() {
       )}
 
       <div className="w-96 bg-white border-r border-slate-200 p-6 flex flex-col print:hidden">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <div className="text-2xl font-black text-slate-900 tracking-tight">Isaiah6tyOne</div>
-            <div className="text-xs font-bold text-violet-600 mt-0.5">{loginPart} 파트 관리 중</div>
-          </div>
-          <button onClick={handleLogout} className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition">로그아웃</button>
-        </div>
+        <div className="text-2xl font-black text-slate-900 tracking-tight mb-6">Isaiah6tyOne</div>
         
         <div className="space-y-3 mb-6">
           <input className="w-full border border-slate-300 p-3 rounded-xl text-sm" placeholder="새 방 이름..." value={newRoomTitle} onChange={(e) => setNewRoomTitle(e.target.value)} />
