@@ -155,7 +155,6 @@ export default function DisplayPage() {
       {/* 헤더 */}
       <div className={`p-4 md:p-5 flex justify-between items-center border-b z-30 flex-shrink-0 ${borderColor}`}>
         <div className="flex items-center gap-4">
-          {/* 💡 좌상단 고정 이름(Isaiah6tyOne) 제거됨, 방 이름만 표시 */}
           {room?.title && (
             <div className={`text-sm md:text-base font-bold px-4 py-1.5 rounded-xl border shadow-sm ${borderColor} ${subTextColor} ${isLight ? 'bg-slate-50' : 'bg-neutral-900'}`}>
               {room.title}
@@ -178,20 +177,20 @@ export default function DisplayPage() {
         </div>
       </div>
 
-      {/* 소제목 & 메인 질문 (질문 상단에 표시) */}
+      {/* 소제목 & 메인 질문 (크기 이전으로 축소) */}
       <div className="py-6 px-6 text-center flex-shrink-0 w-full max-w-5xl mx-auto z-20">
         <div className={`inline-block text-xs font-bold px-3.5 py-1 rounded-full mb-3 border shadow-sm ${borderColor} ${subTextColor}`}>
           {currentQ.type === 'word_cloud' ? '☁️ 단어구름' : currentQ.type === 'multiple_choice' ? '📊 객관식' : '💬 익명 Q&A'}
         </div>
         
-        {/* 💡 소제목이 메인 질문 바로 위에 위치하도록 수정 */}
         {currentQ.subtitle && (
-          <h2 className={`text-lg md:text-xl font-bold mb-2 ${isLight ? 'text-violet-600' : 'text-violet-400'} tracking-wide`}>
+          <h2 className={`text-base md:text-lg font-bold mb-1.5 ${isLight ? 'text-violet-600' : 'text-violet-400'} tracking-wide`}>
             {currentQ.subtitle}
           </h2>
         )}
         
-        <h1 className={`text-3xl md:text-5xl lg:text-6xl font-black tracking-tight leading-tight whitespace-pre-wrap break-keep ${textColor}`}>
+        {/* 💡 질문 텍스트 크기를 예전처럼 (text-2xl md:text-4xl lg:text-5xl) 되돌림 */}
+        <h1 className={`text-2xl md:text-4xl lg:text-5xl font-black tracking-tight leading-relaxed whitespace-pre-wrap break-keep ${textColor}`}>
           {currentQ.title}
         </h1>
       </div>
