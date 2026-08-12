@@ -51,6 +51,7 @@ export default function AdminPage() {
     setQuestions([]);
   };
 
+  // 💡 방 목록 불러오기 (새로 만드신 room_part 컬럼 기준으로 필터링)
   const fetchRooms = async () => {
     const { data, error } = await supabase
       .from('rooms')
@@ -60,9 +61,29 @@ export default function AdminPage() {
     if (error) {
       console.error('방 불러오기 오류:', error);
     } else if (data) {
-      // 💡 여기서 에러의 주범이었던 part_name 대신 room_part를 사용합니다.
       const filtered = data.filter((r: any) => (r.room_part || '워리커') === loginPart);
       setRooms(filtered);
+    }
+  };
+
+  // 💡 방 생성 함수 (새로 만드신 room_part 컬럼에 파트 이름 저장)
+  const handleCreateRoom = async () => {
+    if (!newRoomTitle.trim()) return alert('방 이름을 입력해주세요!');
+    
+    const { error } = await supabase
+      .from('rooms')
+      .insert([{ 
+        title: newRoomTitle.trim(), 
+        theme: roomTheme, 
+        room_part: loginPart 
+      }]);
+
+    if (error) {
+      alert('방 생성 실패: ' + error.message);
+      console.error(error);
+    } else {
+      setNewRoomTitle('');
+      fetchRooms();
     }
   };
 
@@ -77,31 +98,14 @@ export default function AdminPage() {
     else if (data) setQuestions(data);
   };
 
-  const handleCreateRoom = async () => {
-    if (!newRoomTitle.trim()) return alert('방 이름을 입력해주세요!');
-    
-    // 💡 DB에 저장할 때도 room_part로 우회해서 저장합니다.
-    const { error } = await supabase
-      .from('rooms')
-      .insert([{ 
-        title: newRoomTitle.trim(), 
-        theme: roomTheme, 
-        room_part: loginPart 
-      }]);
-
-    if (error) {
-      alert('방 생성 실패: ' + error.message);
-    } else {
-      setNewRoomTitle('');
-      fetchRooms();
-    }
-  };
-
   const handleDeleteRoom = async (roomId: string) => {
     if (!confirm('방을 삭제하시겠습니까?')) return;
-    await supabase.from('rooms').delete().eq('id', roomId);
-    if (selectedRoomId === roomId) setSelectedRoomId(null);
-    fetchRooms();
+    const { error } = await supabase.from('rooms').delete().eq('id', roomId);
+    if (error) alert('삭제 실패: ' + error.message);
+    else {
+      if (selectedRoomId === roomId) setSelectedRoomId(null);
+      fetchRooms();
+    }
   };
 
   const handleSaveQuestion = async () => {
