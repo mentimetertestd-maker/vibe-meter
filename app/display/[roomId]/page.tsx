@@ -47,8 +47,7 @@ export default function DisplayPage() {
   useEffect(() => {
     if (!currentQ?.id) return;
     const fetchAnswers = async () => {
-      // 💡 Q&A 답변이 입력된 순서대로 정렬되도록 .order('id') 추가
-      const { data } = await supabase.from('answers').select('*').eq('question_id', currentQ.id).order('id', { ascending: true });
+      const { data } = await supabase.from('answers').select('*').eq('question_id', currentQ.id).order('created_at', { ascending: true });
       if (data) setAnswers(data);
     };
     fetchAnswers();
@@ -56,19 +55,18 @@ export default function DisplayPage() {
     return () => clearInterval(interval);
   }, [currentQ?.id]);
 
-  if (loading) return <div className="flex h-screen items-center justify-center bg-black text-white text-xl">로딩중...</div>;
-  if (questions.length === 0) return <div className="flex h-screen items-center justify-center bg-black text-white text-xl">등록된 질문이 없습니다.</div>;
+  if (loading) return <div className="flex h-screen items-center justify-center bg-black text-white text-xl font-bold">로딩중...</div>;
+  if (questions.length === 0) return <div className="flex h-screen items-center justify-center bg-black text-white text-xl font-bold">등록된 질문이 없습니다.</div>;
 
   const nextSlide = () => { if (currentIndex < questions.length - 1) setCurrentIndex(currentIndex + 1); };
   const prevSlide = () => { if (currentIndex > 0) setCurrentIndex(currentIndex - 1); };
 
   const isLight = room?.theme === 'light';
-  // 💡 무조건 블랙 or 화이트 (컬러 제거)
   const textColor = isLight ? 'text-slate-900' : 'text-white';
   const subTextColor = isLight ? 'text-slate-500' : 'text-neutral-400';
   const bgColor = isLight ? 'bg-white' : 'bg-black';
   const borderColor = isLight ? 'border-slate-200' : 'border-neutral-800';
-  const cardBg = isLight ? 'bg-white' : 'bg-neutral-900/50';
+  const cardBg = isLight ? 'bg-white' : 'bg-neutral-900/60';
 
   const getWordCloudData = () => {
     const counts: { [key: string]: number } = {};
@@ -85,10 +83,10 @@ export default function DisplayPage() {
     if (index === 0) return { top: '50%', left: '50%' };
     const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const sectors = [
-      { top: 22, left: 20 }, { top: 25, left: 75 },
-      { top: 75, left: 25 }, { top: 72, left: 80 },
-      { top: 48, left: 15 }, { top: 52, left: 85 },
-      { top: 20, left: 48 }, { top: 78, left: 52 }
+      { top: 25, left: 20 }, { top: 25, left: 75 },
+      { top: 75, left: 25 }, { top: 75, left: 75 },
+      { top: 50, left: 15 }, { top: 50, left: 85 },
+      { top: 20, left: 50 }, { top: 80, left: 50 }
     ];
     const sector = sectors[index % sectors.length];
     const jitterTop = sector.top + ((hash % 7) - 3);
@@ -105,93 +103,92 @@ export default function DisplayPage() {
         </div>
       )}
 
-      <div className={`p-5 md:p-6 flex justify-between items-center border-b z-30 transition-colors ${borderColor}`}>
+      {/* 헤더 영역 */}
+      <div className={`p-4 md:p-5 flex justify-between items-center border-b z-30 flex-shrink-0 ${borderColor}`}>
         <div className="flex items-center gap-4">
-          <div className="text-2xl md:text-3xl font-black tracking-tight">Isaiah6tyOne</div>
+          <div className="text-xl md:text-2xl font-black tracking-tight">Isaiah6tyOne</div>
           {room?.title && (
-            <div className={`text-sm font-bold px-3.5 py-1.5 rounded-xl border ${borderColor} ${subTextColor}`}>
+            <div className={`text-xs md:text-sm font-bold px-3 py-1 rounded-xl border ${borderColor} ${subTextColor}`}>
               {room.title}
             </div>
           )}
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 md:gap-6">
           {joinUrl && (
-            <div onClick={() => setShowBigQR(true)} className={`flex items-center gap-4 px-4 py-2 rounded-2xl shadow-sm cursor-pointer border transition ${borderColor} hover:opacity-70`}>
+            <div onClick={() => setShowBigQR(true)} className={`flex items-center gap-3 px-3.5 py-1.5 rounded-2xl shadow-sm cursor-pointer border transition ${borderColor} hover:opacity-70`}>
               <div className="text-right hidden md:block">
-                <div className={`text-[11px] font-medium ${subTextColor} mb-0.5`}>스마트폰으로 참여하기</div>
+                <div className={`text-[10px] font-medium ${subTextColor}`}>스마트폰으로 참여하기</div>
                 <div className="text-xs font-bold">{joinUrl.replace(/^https?:\/\//, '')}</div>
               </div>
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`} className="w-12 h-12 rounded-lg bg-white p-1" />
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`} className="w-10 h-10 rounded-lg bg-white p-1" />
             </div>
           )}
-          <div className={`font-bold px-5 py-2.5 rounded-full border text-sm ${borderColor} ${subTextColor}`}>
+          <div className={`font-bold px-4 py-2 rounded-full border text-xs md:text-sm ${borderColor} ${subTextColor}`}>
             {currentIndex + 1} / {questions.length}
           </div>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-        
-        <div className="absolute top-10 z-20 w-full max-w-6xl px-4 pointer-events-none flex flex-col items-center">
-          <div className={`inline-block text-xs font-bold px-4 py-1.5 rounded-full mb-3 border ${borderColor} ${subTextColor}`}>
-            {currentQ.type === 'word_cloud' ? '☁️ 단어구름' : currentQ.type === 'multiple_choice' ? '📊 객관식' : '💬 익명 Q&A'}
-          </div>
-          {/* 💡 소제목 출력 부분 */}
-          {currentQ.subtitle && (
-            <h2 className={`text-xl md:text-2xl font-bold mb-3 ${subTextColor} tracking-wide`}>
-              {currentQ.subtitle}
-            </h2>
-          )}
-          <h1 className={`text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-snug whitespace-pre-wrap break-keep ${textColor}`}>
-            {currentQ.title}
-          </h1>
+      {/* 질문 제목 영역 (겹침 문제 완벽 방지) */}
+      <div className="py-6 px-6 text-center flex-shrink-0 w-full max-w-5xl mx-auto z-20">
+        <div className={`inline-block text-xs font-bold px-3.5 py-1 rounded-full mb-2 border ${borderColor} ${subTextColor}`}>
+          {currentQ.type === 'word_cloud' ? '☁️ 단어구름' : currentQ.type === 'multiple_choice' ? '📊 객관식' : '💬 익명 Q&A'}
         </div>
+        {currentQ.subtitle && (
+          <h2 className={`text-base md:text-lg font-bold mb-1.5 ${subTextColor} tracking-wide`}>
+            {currentQ.subtitle}
+          </h2>
+        )}
+        <h1 className={`text-2xl md:text-4xl lg:text-5xl font-black tracking-tight leading-relaxed whitespace-pre-wrap break-keep ${textColor}`}>
+          {currentQ.title}
+        </h1>
+      </div>
 
+      {/* 콘텐츠 표시 영역 */}
+      <div className="flex-1 relative overflow-hidden flex flex-col items-center justify-center px-6 pb-16">
+        
         {currentQ.type === 'word_cloud' && (
-          <div className="absolute inset-0 pt-48 pb-20 px-10 flex items-center justify-center overflow-hidden">
+          <div className="w-full h-full relative">
             {answers.length === 0 ? (
-              <div className={`text-xl font-medium flex items-center gap-3 z-10 ${subTextColor}`}>
+              <div className={`h-full flex items-center justify-center text-lg md:text-xl font-medium ${subTextColor}`}>
                 참가자들의 답변을 기다리고 있습니다...
               </div>
             ) : (
-              <div className="w-full h-full relative">
-                {wordList.map((item, idx) => {
-                  const pos = getPosition(idx, item.text);
-                  // 💡 애니메이션 제거, 겹침 횟수 텍스트 제거, 크기 비례만 적용
-                  let sizeClass = "text-2xl md:text-3xl font-semibold opacity-80";
-                  let zIndex = "z-10";
+              wordList.map((item, idx) => {
+                const pos = getPosition(idx, item.text);
+                let sizeClass = "text-xl md:text-2xl font-semibold opacity-80";
+                let zIndex = "z-10";
 
-                  if (idx === 0) {
-                    sizeClass = "text-7xl md:text-9xl font-black drop-shadow-xl scale-110 opacity-100";
-                    zIndex = "z-50";
-                  } else if (item.count >= 3) {
-                    sizeClass = "text-5xl md:text-7xl font-extrabold opacity-95";
-                    zIndex = "z-30";
-                  } else if (item.count === 2) {
-                    sizeClass = "text-3xl md:text-4xl font-bold opacity-90";
-                    zIndex = "z-20";
-                  }
+                if (idx === 0) {
+                  sizeClass = "text-6xl md:text-8xl font-black opacity-100 drop-shadow-lg";
+                  zIndex = "z-50";
+                } else if (item.count >= 3) {
+                  sizeClass = "text-4xl md:text-6xl font-extrabold opacity-95";
+                  zIndex = "z-30";
+                } else if (item.count === 2) {
+                  sizeClass = "text-2xl md:text-4xl font-bold opacity-90";
+                  zIndex = "z-20";
+                }
 
-                  return (
-                    <div key={idx} style={{ position: 'absolute', top: pos.top, left: pos.left, transform: 'translate(-50%, -50%)' }} className={`absolute select-none whitespace-nowrap ${sizeClass} ${textColor} ${zIndex}`}>
-                      <span>{item.text}</span>
-                    </div>
-                  );
-                })}
-              </div>
+                return (
+                  <div key={idx} style={{ position: 'absolute', top: pos.top, left: pos.left, transform: 'translate(-50%, -50%)' }} className={`absolute select-none whitespace-nowrap ${sizeClass} ${textColor} ${zIndex}`}>
+                    <span>{item.text}</span>
+                  </div>
+                );
+              })
             )}
           </div>
         )}
 
         {currentQ.type === 'multiple_choice' && (
-          <div className="w-full max-w-2xl mt-40 space-y-4 z-10">
+          <div className="w-full max-w-2xl space-y-3.5 z-10 overflow-y-auto max-h-full py-2">
             {currentQ.options?.map((opt: string, idx: number) => {
               const count = answers.filter(a => a.answer_text === opt).length;
               const percent = answers.length > 0 ? Math.round((count / answers.length) * 100) : 0;
               return (
-                <div key={idx} className={`border p-6 rounded-2xl relative overflow-hidden text-left shadow-sm ${cardBg} ${borderColor}`}>
+                <div key={idx} className={`border p-5 rounded-2xl relative overflow-hidden text-left shadow-sm ${cardBg} ${borderColor}`}>
                   <div className={`absolute left-0 top-0 bottom-0 ${isLight ? 'bg-slate-200' : 'bg-neutral-800'}`} style={{ width: `${percent}%` }}></div>
-                  <div className="relative z-10 flex justify-between font-bold text-xl">
+                  <div className="relative z-10 flex justify-between font-bold text-lg md:text-xl">
                     <span>{opt}</span>
                     <span className={subTextColor}>{count}명 ({percent}%)</span>
                   </div>
@@ -202,12 +199,12 @@ export default function DisplayPage() {
         )}
 
         {currentQ.type === 'qna' && (
-          <div className="w-full max-w-5xl mt-40 max-h-[500px] overflow-y-auto flex flex-col items-center gap-5 z-10 p-4">
+          <div className="w-full max-w-4xl h-full overflow-y-auto flex flex-col items-center gap-4 z-10 p-2">
             {answers.length === 0 ? (
-              <p className={`text-lg ${subTextColor}`}>아직 제출된 답변이 없습니다.</p>
+              <div className={`h-full flex items-center justify-center text-lg ${subTextColor}`}>아직 제출된 답변이 없습니다.</div>
             ) : (
               answers.map((ans, idx) => (
-                <div key={idx} className={`w-full max-w-4xl border px-8 py-6 rounded-3xl text-xl font-medium text-left shadow-sm whitespace-pre-wrap break-keep leading-relaxed tracking-wide ${cardBg} ${borderColor}`}>
+                <div key={idx} className={`w-full border px-6 py-5 rounded-2xl text-lg md:text-xl font-medium text-left shadow-sm whitespace-pre-wrap break-keep leading-relaxed tracking-wide ${cardBg} ${borderColor}`}>
                   {ans.answer_text}
                 </div>
               ))
@@ -215,14 +212,15 @@ export default function DisplayPage() {
           </div>
         )}
 
-        <div className={`absolute bottom-6 z-20 text-xs font-bold px-5 py-2.5 rounded-full border shadow-sm ${cardBg} ${borderColor} ${subTextColor}`}>
+        <div className={`absolute bottom-3 z-20 text-xs font-bold px-4 py-2 rounded-full border shadow-sm ${cardBg} ${borderColor} ${subTextColor}`}>
           총 참여 응답: <span className={`font-black ${textColor}`}>{answers.length}</span>개
         </div>
       </div>
 
-      <div className={`p-5 flex justify-center gap-6 border-t z-30 transition-colors ${borderColor}`}>
-        <button onClick={prevSlide} disabled={currentIndex === 0} className={`px-8 py-3.5 rounded-2xl font-bold transition text-base border disabled:opacity-30 ${isLight ? 'bg-white border-slate-300 hover:bg-slate-100' : 'bg-neutral-900 border-neutral-800 hover:bg-neutral-800'}`}>◀ 이전</button>
-        <button onClick={nextSlide} disabled={currentIndex === questions.length - 1} className={`px-8 py-3.5 rounded-2xl font-bold transition text-base disabled:opacity-30 ${isLight ? 'bg-slate-900 text-white' : 'bg-white text-black'}`}>다음 ▶</button>
+      {/* 하단 버튼 영역 */}
+      <div className={`p-4 flex justify-center gap-6 border-t z-30 flex-shrink-0 ${borderColor}`}>
+        <button onClick={prevSlide} disabled={currentIndex === 0} className={`px-7 py-3 rounded-2xl font-bold transition text-sm border disabled:opacity-30 ${isLight ? 'bg-white border-slate-300 hover:bg-slate-100' : 'bg-neutral-900 border-neutral-800 hover:bg-neutral-800'}`}>◀ 이전</button>
+        <button onClick={nextSlide} disabled={currentIndex === questions.length - 1} className={`px-7 py-3 rounded-2xl font-bold transition text-sm disabled:opacity-30 ${isLight ? 'bg-slate-900 text-white' : 'bg-white text-black'}`}>다음 ▶</button>
       </div>
     </div>
   );
