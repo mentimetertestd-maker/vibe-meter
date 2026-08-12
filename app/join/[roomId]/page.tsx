@@ -107,6 +107,7 @@ export default function JoinPage() {
               </div>
             ) : (
               <div>
+                {/* 줄 바꿈 지원 입력창 */}
                 <textarea 
                   className="w-full border-2 border-slate-200 p-4 rounded-2xl mb-4 focus:outline-none focus:border-slate-900 text-slate-900 text-base bg-slate-50 focus:bg-white transition resize-none leading-relaxed" 
                   rows={4}
@@ -125,6 +126,6 @@ export default function JoinPage() {
           </div>
         )}
       </div>
-    </div>
-  );
+    );
+  }
 }
