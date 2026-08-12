@@ -29,10 +29,10 @@ export default function AdminPage() {
   // 💡 2. 파트별 비밀번호 설정 (원하는 비밀번호로 자유롭게 수정 가능)
   const handleLogin = () => {
     const passwords: { [key: string]: string } = {
-      '워리커': '1111',   // 워리커 파트 비밀번호 (영문/숫자 혼용 가능)
-      '워밴커': '2222',   // 워밴커 파트 비밀번호
-      '본질': '3333',     // 본질 파트 비밀번호
-      '리바이브': '4444', // 리바이브 파트 비밀번호
+      '워리커': 'dnjflzj61',   // 워리커 파트 비밀번호 (영문/숫자 혼용 가능)
+      '워밴커': 'dnjqoszj61',   // 워밴커 파트 비밀번호
+      '본질': 'qhswlf61',     // 본질 파트 비밀번호
+      '리바이브': 'flqkdlqm61', // 리바이브 파트 비밀번호
     };
 
     if (password === passwords[loginPart]) {
