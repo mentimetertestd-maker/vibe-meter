@@ -155,9 +155,9 @@ export default function DisplayPage() {
       {/* 헤더 */}
       <div className={`p-4 md:p-5 flex justify-between items-center border-b z-30 flex-shrink-0 ${borderColor}`}>
         <div className="flex items-center gap-4">
-          <div className="text-xl md:text-2xl font-black tracking-tight">Isaiah6tyOne</div>
+          {/* 💡 좌상단 고정 이름(Isaiah6tyOne) 제거됨, 방 이름만 표시 */}
           {room?.title && (
-            <div className={`text-xs md:text-sm font-bold px-3 py-1 rounded-xl border ${borderColor} ${subTextColor}`}>
+            <div className={`text-sm md:text-base font-bold px-4 py-1.5 rounded-xl border shadow-sm ${borderColor} ${subTextColor} ${isLight ? 'bg-slate-50' : 'bg-neutral-900'}`}>
               {room.title}
             </div>
           )}
@@ -178,17 +178,20 @@ export default function DisplayPage() {
         </div>
       </div>
 
-      {/* 소제목 & 메인 질문 */}
+      {/* 소제목 & 메인 질문 (질문 상단에 표시) */}
       <div className="py-6 px-6 text-center flex-shrink-0 w-full max-w-5xl mx-auto z-20">
-        <div className={`inline-block text-xs font-bold px-3.5 py-1 rounded-full mb-2 border ${borderColor} ${subTextColor}`}>
+        <div className={`inline-block text-xs font-bold px-3.5 py-1 rounded-full mb-3 border shadow-sm ${borderColor} ${subTextColor}`}>
           {currentQ.type === 'word_cloud' ? '☁️ 단어구름' : currentQ.type === 'multiple_choice' ? '📊 객관식' : '💬 익명 Q&A'}
         </div>
+        
+        {/* 💡 소제목이 메인 질문 바로 위에 위치하도록 수정 */}
         {currentQ.subtitle && (
-          <h2 className={`text-base md:text-lg font-bold mb-1.5 ${subTextColor} tracking-wide`}>
+          <h2 className={`text-lg md:text-xl font-bold mb-2 ${isLight ? 'text-violet-600' : 'text-violet-400'} tracking-wide`}>
             {currentQ.subtitle}
           </h2>
         )}
-        <h1 className={`text-2xl md:text-4xl lg:text-5xl font-black tracking-tight leading-relaxed whitespace-pre-wrap break-keep ${textColor}`}>
+        
+        <h1 className={`text-3xl md:text-5xl lg:text-6xl font-black tracking-tight leading-tight whitespace-pre-wrap break-keep ${textColor}`}>
           {currentQ.title}
         </h1>
       </div>
@@ -209,8 +212,6 @@ export default function DisplayPage() {
                 const color = wordColors[item.text] || '#38bdf8'; 
                 
                 // 💡 횟수(count)에 비례해서 글자 크기(rem)가 무한히 커지도록 동적 계산
-                // 1등(가운데) 단어는 기본 3.5rem부터, 다른 단어들은 1.2rem부터 시작
-                // 같은 단어가 제출될 때마다 0.6rem씩 사이즈가 제한 없이 계속 증가함
                 const baseSize = idx === 0 ? 3.5 : 1.2;
                 const dynamicFontSize = `${baseSize + (item.count - 1) * 0.6}rem`;
 
@@ -241,7 +242,7 @@ export default function DisplayPage() {
                       top: pos.top, 
                       left: pos.left, 
                       color: color,
-                      fontSize: dynamicFontSize, // 👈 제한이 없는 동적 폰트 사이즈 적용!
+                      fontSize: dynamicFontSize,
                       animationDelay: `0s, ${animDelay}s`
                     }} 
                     className={`cloud-item select-none whitespace-nowrap transition-all duration-500 ${weightClass} ${zIndex}`}
