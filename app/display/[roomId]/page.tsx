@@ -86,19 +86,22 @@ export default function DisplayPage() {
 
   const wordList = getWordCloudData();
 
-  const getPosition = (index: number, text: string) => {
+  // 💡 촘촘하게 중앙으로 모이는 나선형(Spiral) 좌표 배치 알고리즘
+  const getTightPosition = (index: number, text: string) => {
     if (index === 0) return { top: '50%', left: '50%' };
+
+    // 나선형 배치를 통해 중앙 근처에 촘촘히 뭉치도록 설정
+    const angle = index * 2.4; 
+    const radius = 8 + Math.sqrt(index) * 11; // 중앙에서 과도하게 멀어지지 않도록 반경 축소
+
     const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const sectors = [
-      { top: 25, left: 20 }, { top: 25, left: 75 },
-      { top: 75, left: 25 }, { top: 75, left: 75 },
-      { top: 50, left: 15 }, { top: 50, left: 85 },
-      { top: 20, left: 50 }, { top: 80, left: 50 }
-    ];
-    const sector = sectors[index % sectors.length];
-    const jitterTop = sector.top + ((hash % 7) - 3);
-    const jitterLeft = sector.left + (((hash * 3) % 7) - 3);
-    return { top: `${jitterTop}%`, left: `${jitterLeft}%` };
+    const jitterX = ((hash % 5) - 2);
+    const jitterY = (((hash * 3) % 5) - 2);
+
+    const x = 50 + radius * Math.cos(angle) + jitterX;
+    const y = 50 + radius * Math.sin(angle) * 0.7 + jitterY; // 타원형으로 중앙 조밀도 상승
+
+    return { top: `${Math.max(15, Math.min(85, y))}%`, left: `${Math.max(12, Math.min(88, x))}%` };
   };
 
   const getColorByText = (text: string, index: number) => {
@@ -109,11 +112,11 @@ export default function DisplayPage() {
   return (
     <div className={`flex flex-col h-screen font-sans overflow-hidden transition-colors duration-500 ${bgColor} ${textColor}`}>
       
-      {/* ☁️ 구름 애니메이션 스타일 추가 */}
+      {/* ☁️ 플로팅 유지 & 부드러운 등장 모션 */}
       <style jsx global>{`
         @keyframes floatSlow {
           0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
-          50% { transform: translate(-50%, -50%) translateY(-8px); }
+          50% { transform: translate(-50%, -50%) translateY(-6px); }
         }
         @keyframes cloudPop {
           0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
@@ -159,7 +162,7 @@ export default function DisplayPage() {
         </div>
       </div>
 
-      {/* 소제목 & 줄바꿈 메인 질문 */}
+      {/* 소제목 & 메인 질문 */}
       <div className="py-6 px-6 text-center flex-shrink-0 w-full max-w-5xl mx-auto z-20">
         <div className={`inline-block text-xs font-bold px-3.5 py-1 rounded-full mb-2 border ${borderColor} ${subTextColor}`}>
           {currentQ.type === 'word_cloud' ? '☁️ 단어구름' : currentQ.type === 'multiple_choice' ? '📊 객관식' : '💬 익명 Q&A'}
@@ -174,10 +177,10 @@ export default function DisplayPage() {
         </h1>
       </div>
 
-      {/* 전광판 슬라이드 내용 */}
+      {/* 전광판 콘텐츠 */}
       <div className="flex-1 relative overflow-hidden flex flex-col items-center justify-center px-6 pb-16">
         
-        {/* ☁️ 단어구름 (모션 및 몽실몽실 애니메이션 추가) */}
+        {/* ☁️ 밀집형 단어구름 (중앙 조밀 배치 & 크기 차등) */}
         {currentQ.type === 'word_cloud' && (
           <div className="w-full h-full relative">
             {answers.length === 0 ? (
@@ -186,24 +189,28 @@ export default function DisplayPage() {
               </div>
             ) : (
               wordList.map((item, idx) => {
-                const pos = getPosition(idx, item.text);
+                const pos = getTightPosition(idx, item.text);
                 const color = getColorByText(item.text, idx);
-                let sizeClass = "text-xl md:text-2xl font-semibold opacity-90";
+                
+                // 순위 및 지분율에 따른 크기 커스텀 (가운데로 모일수록 거대해짐)
+                let sizeClass = "text-lg md:text-xl font-medium opacity-80";
                 let zIndex = "z-10";
 
                 if (idx === 0) {
                   sizeClass = "text-6xl md:text-8xl font-black opacity-100 drop-shadow-2xl";
                   zIndex = "z-50";
-                } else if (item.count >= 3) {
+                } else if (idx <= 2 || item.count >= 3) {
                   sizeClass = "text-4xl md:text-6xl font-extrabold opacity-95";
-                  zIndex = "z-30";
-                } else if (item.count === 2) {
+                  zIndex = "z-40";
+                } else if (idx <= 5 || item.count === 2) {
                   sizeClass = "text-2xl md:text-4xl font-bold opacity-90";
+                  zIndex = "z-30";
+                } else if (idx <= 10) {
+                  sizeClass = "text-xl md:text-2xl font-semibold opacity-85";
                   zIndex = "z-20";
                 }
 
-                // 단어마다 떠다니는 타이밍(delay)을 살짝 다르게 줘서 더 자연스럽게 만듭니다
-                const animDelay = (idx * 0.25) % 2;
+                const animDelay = (idx * 0.2) % 2;
 
                 return (
                   <div 
@@ -215,7 +222,7 @@ export default function DisplayPage() {
                       color: color,
                       animationDelay: `0s, ${animDelay}s`
                     }} 
-                    className={`cloud-item select-none whitespace-nowrap ${sizeClass} ${zIndex}`}
+                    className={`cloud-item select-none whitespace-nowrap transition-all duration-500 ${sizeClass} ${zIndex}`}
                   >
                     <span>{item.text}</span>
                   </div>
@@ -264,7 +271,7 @@ export default function DisplayPage() {
         </div>
       </div>
 
-      {/* 하단 슬라이드 버튼 */}
+      {/* 하단 버튼 */}
       <div className={`p-4 flex justify-center gap-6 border-t z-30 flex-shrink-0 ${borderColor}`}>
         <button onClick={prevSlide} disabled={currentIndex === 0} className={`px-7 py-3 rounded-2xl font-bold transition text-sm border disabled:opacity-30 ${isLight ? 'bg-white border-slate-300 hover:bg-slate-100' : 'bg-neutral-900 border-neutral-800 hover:bg-neutral-800'}`}>◀ 이전</button>
         <button onClick={nextSlide} disabled={currentIndex === questions.length - 1} className={`px-7 py-3 rounded-2xl font-bold transition text-sm disabled:opacity-30 ${isLight ? 'bg-slate-900 text-white' : 'bg-white text-black'}`}>다음 ▶</button>
