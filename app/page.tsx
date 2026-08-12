@@ -65,7 +65,7 @@ export default function AdminPage() {
     if (editingId) {
       await supabase.from('questions').update({ 
         title: newQuestionTitle, 
-        subtitle: newSubtitle, 
+        subtitle: newSubtitle || '', 
         type: questionType, 
         options: filteredOptions 
       }).eq('id', editingId);
@@ -75,7 +75,7 @@ export default function AdminPage() {
       await supabase.from('questions').insert([{ 
         room_id: selectedRoomId, 
         title: newQuestionTitle, 
-        subtitle: newSubtitle, 
+        subtitle: newSubtitle || '', 
         sort_order: nextOrder, 
         type: questionType, 
         options: filteredOptions 
@@ -136,8 +136,6 @@ export default function AdminPage() {
 
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans print:bg-white print:text-black">
-      
-      {/* 📊 결과 추출 및 PDF 보기 모달 */}
       {isResultModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 z-50 flex justify-center items-center p-6 print:p-0 print:bg-white">
           <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl print:max-h-none print:shadow-none print:w-full">
@@ -204,7 +202,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* 방 목록 패널 */}
       <div className="w-96 bg-white border-r border-slate-200 p-6 flex flex-col print:hidden">
         <div className="text-2xl font-black text-slate-900 tracking-tight mb-6">Isaiah6tyOne</div>
         
@@ -230,7 +227,6 @@ export default function AdminPage() {
         </ul>
       </div>
 
-      {/* 질문 관리 영역 */}
       <div className="flex-1 p-10 bg-slate-50 overflow-y-auto print:hidden">
         {!selectedRoomId ? (
           <div className="flex items-center justify-center h-full text-slate-400 font-medium">👈 왼쪽에서 방을 선택하거나 새 방을 생성해주세요.</div>
@@ -256,10 +252,8 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              {/* 소제목 입력창 추가 */}
               <input className="w-full border border-slate-300 p-3.5 rounded-xl mb-3 bg-slate-50 focus:bg-white transition" placeholder="소제목을 입력하세요 (예: Session 1. 아이스브레이킹)" value={newSubtitle} onChange={(e) => setNewSubtitle(e.target.value)} />
 
-              {/* 엔터 줄 바꿈 가능한 질문 입력창 */}
               <textarea 
                 className="w-full border border-slate-300 p-3.5 rounded-xl mb-4 bg-slate-50 focus:bg-white transition resize-none whitespace-pre-wrap leading-relaxed" 
                 rows={3} placeholder="메인 질문을 입력하세요... (엔터키로 줄바꿈 가능)" value={newQuestionTitle} onChange={(e) => setNewQuestionTitle(e.target.value)} 
