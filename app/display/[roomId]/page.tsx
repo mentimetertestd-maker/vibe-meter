@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
@@ -62,6 +62,46 @@ export default function DisplayPage() {
     return () => clearInterval(interval);
   }, [currentQ?.id]);
 
+  const getWordCloudData = () => {
+    const counts: { [key: string]: number } = {};
+    answers.forEach((ans) => {
+      const word = ans.answer_text.trim();
+      if (word) counts[word] = (counts[word] || 0) + 1;
+    });
+    return Object.entries(counts).map(([text, count]) => ({ text, count })).sort((a, b) => b.count - a.count);
+  };
+
+  const wordList = getWordCloudData();
+
+  // 💡 단어별 고유 색상 완전 고정 (useMemo 적용)
+  const wordColors = useMemo(() => {
+    const colorMap: { [key: string]: string } = {};
+    wordList.forEach(({ text }) => {
+      if (!colorMap[text]) {
+        const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        colorMap[text] = COLOR_PALETTE[Math.abs(hash) % COLOR_PALETTE.length];
+      }
+    });
+    return colorMap;
+  }, [wordList.map(w => w.text).join(',')]);
+
+  // 💡 더 한곳으로 촘촘히 뭉치게 고친 나선형 알고리즘
+  const getTightPosition = (index: number, text: string) => {
+    if (index === 0) return { top: '50%', left: '50%' };
+
+    const angle = index * 2.2; 
+    const radius = 5 + Math.sqrt(index) * 8.5; // 반경 대폭 축소로 완전 밀집
+
+    const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const jitterX = ((hash % 3) - 1);
+    const jitterY = (((hash * 3) % 3) - 1);
+
+    const x = 50 + radius * Math.cos(angle) + jitterX;
+    const y = 50 + radius * Math.sin(angle) * 0.65 + jitterY; 
+
+    return { top: `${Math.max(18, Math.min(82, y))}%`, left: `${Math.max(15, Math.min(85, x))}%` };
+  };
+
   if (loading) return <div className="flex h-screen items-center justify-center bg-black text-white text-xl font-bold">로딩중...</div>;
   if (questions.length === 0) return <div className="flex h-screen items-center justify-center bg-black text-white text-xl font-bold">등록된 질문이 없습니다.</div>;
 
@@ -75,48 +115,13 @@ export default function DisplayPage() {
   const borderColor = isLight ? 'border-slate-200' : 'border-neutral-800';
   const cardBg = isLight ? 'bg-white' : 'bg-neutral-900/60';
 
-  const getWordCloudData = () => {
-    const counts: { [key: string]: number } = {};
-    answers.forEach((ans) => {
-      const word = ans.answer_text.trim();
-      if (word) counts[word] = (counts[word] || 0) + 1;
-    });
-    return Object.entries(counts).map(([text, count]) => ({ text, count })).sort((a, b) => b.count - a.count);
-  };
-
-  const wordList = getWordCloudData();
-
-  // 💡 촘촘하게 중앙으로 모이는 나선형(Spiral) 좌표 배치 알고리즘
-  const getTightPosition = (index: number, text: string) => {
-    if (index === 0) return { top: '50%', left: '50%' };
-
-    // 나선형 배치를 통해 중앙 근처에 촘촘히 뭉치도록 설정
-    const angle = index * 2.4; 
-    const radius = 8 + Math.sqrt(index) * 11; // 중앙에서 과도하게 멀어지지 않도록 반경 축소
-
-    const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const jitterX = ((hash % 5) - 2);
-    const jitterY = (((hash * 3) % 5) - 2);
-
-    const x = 50 + radius * Math.cos(angle) + jitterX;
-    const y = 50 + radius * Math.sin(angle) * 0.7 + jitterY; // 타원형으로 중앙 조밀도 상승
-
-    return { top: `${Math.max(15, Math.min(85, y))}%`, left: `${Math.max(12, Math.min(88, x))}%` };
-  };
-
-  const getColorByText = (text: string, index: number) => {
-    const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + index;
-    return COLOR_PALETTE[hash % COLOR_PALETTE.length];
-  };
-
   return (
     <div className={`flex flex-col h-screen font-sans overflow-hidden transition-colors duration-500 ${bgColor} ${textColor}`}>
       
-      {/* ☁️ 플로팅 유지 & 부드러운 등장 모션 */}
       <style jsx global>{`
         @keyframes floatSlow {
           0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
-          50% { transform: translate(-50%, -50%) translateY(-6px); }
+          50% { transform: translate(-50%, -50%) translateY(-5px); }
         }
         @keyframes cloudPop {
           0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
@@ -124,15 +129,16 @@ export default function DisplayPage() {
           100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         }
         .cloud-item {
-          animation: cloudPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, floatSlow 4s ease-in-out infinite;
+          animation: cloudPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, floatSlow 4s ease-in-out infinite;
           will-change: transform, opacity;
         }
       `}</style>
 
+      {/* 📱 QR 코드 최상위 레이어 지정 (z-[9999]) */}
       {showBigQR && (
-        <div className="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center cursor-pointer backdrop-blur-sm" onClick={() => setShowBigQR(false)}>
-          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(joinUrl)}`} alt="큰 QR코드" className="w-80 h-80 md:w-96 md:h-96 rounded-3xl bg-white p-4 shadow-2xl" />
-          <p className="mt-8 text-2xl font-bold text-white/80">화면을 터치하면 닫힙니다</p>
+        <div className="fixed inset-0 bg-black/95 z-[9999] flex flex-col items-center justify-center cursor-pointer backdrop-blur-md" onClick={() => setShowBigQR(false)}>
+          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(joinUrl)}`} alt="큰 QR코드" className="w-80 h-80 md:w-96 md:h-96 rounded-3xl bg-white p-4 shadow-2xl relative z-[10000]" />
+          <p className="mt-8 text-2xl font-bold text-white/80 relative z-[10000]">화면을 터치하면 닫힙니다</p>
         </div>
       )}
 
@@ -178,9 +184,9 @@ export default function DisplayPage() {
       </div>
 
       {/* 전광판 콘텐츠 */}
-      <div className="flex-1 relative overflow-hidden flex flex-col items-center justify-center px-6 pb-16">
+      <div className="flex-1 relative overflow-hidden flex flex-col items-center justify-center px-6 pb-16 z-10">
         
-        {/* ☁️ 밀집형 단어구름 (중앙 조밀 배치 & 크기 차등) */}
+        {/* ☁️ 단어구름 */}
         {currentQ.type === 'word_cloud' && (
           <div className="w-full h-full relative">
             {answers.length === 0 ? (
@@ -190,31 +196,30 @@ export default function DisplayPage() {
             ) : (
               wordList.map((item, idx) => {
                 const pos = getTightPosition(idx, item.text);
-                const color = getColorByText(item.text, idx);
+                const color = wordColors[item.text] || '#38bdf8'; // 절대 안 바뀌는 고정 색상
                 
-                // 순위 및 지분율에 따른 크기 커스텀 (가운데로 모일수록 거대해짐)
                 let sizeClass = "text-lg md:text-xl font-medium opacity-80";
                 let zIndex = "z-10";
 
                 if (idx === 0) {
-                  sizeClass = "text-6xl md:text-8xl font-black opacity-100 drop-shadow-2xl";
-                  zIndex = "z-50";
-                } else if (idx <= 2 || item.count >= 3) {
-                  sizeClass = "text-4xl md:text-6xl font-extrabold opacity-95";
-                  zIndex = "z-40";
-                } else if (idx <= 5 || item.count === 2) {
-                  sizeClass = "text-2xl md:text-4xl font-bold opacity-90";
+                  sizeClass = "text-5xl md:text-7xl font-black opacity-100 drop-shadow-2xl";
                   zIndex = "z-30";
-                } else if (idx <= 10) {
-                  sizeClass = "text-xl md:text-2xl font-semibold opacity-85";
+                } else if (idx <= 2 || item.count >= 3) {
+                  sizeClass = "text-3xl md:text-5xl font-extrabold opacity-95";
+                  zIndex = "z-25";
+                } else if (idx <= 5 || item.count === 2) {
+                  sizeClass = "text-xl md:text-3xl font-bold opacity-90";
                   zIndex = "z-20";
+                } else if (idx <= 10) {
+                  sizeClass = "text-lg md:text-xl font-semibold opacity-85";
+                  zIndex = "z-15";
                 }
 
                 const animDelay = (idx * 0.2) % 2;
 
                 return (
                   <div 
-                    key={idx} 
+                    key={item.text} 
                     style={{ 
                       position: 'absolute', 
                       top: pos.top, 
