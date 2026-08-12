@@ -28,7 +28,6 @@ export default function AdminPage() {
   useEffect(() => { if (isLoggedIn) fetchRooms(); }, [isLoggedIn, loginPart]);
   useEffect(() => { if (selectedRoomId) fetchQuestions(selectedRoomId); }, [selectedRoomId]);
 
-  // 비밀번호 설정 (원하시는 대로 수정하세요)
   const handleLogin = () => {
     const passwords: { [key: string]: string } = {
       '워리커': '1111', 
@@ -53,9 +52,14 @@ export default function AdminPage() {
   };
 
   const fetchRooms = async () => {
-    const { data, error } = await supabase.from('rooms').select('*').eq('part_name', loginPart).order('created_at', { ascending: false });
-    if (error) console.error('방 불러오기 오류:', error);
-    else if (data) setRooms(data);
+    const { data, error } = await supabase.from('rooms').select('*').order('created_at', { ascending: false });
+    if (error) {
+      console.error('방 불러오기 오류:', error);
+    } else if (data) {
+      // 스키마 에러를 피하기 위해 JS단에서 파트별 필터링
+      const filteredRooms = data.filter((r: any) => (r.part_name || '워리커') === loginPart);
+      setRooms(filteredRooms);
+    }
   };
 
   const fetchQuestions = async (roomId: string) => {
@@ -66,9 +70,32 @@ export default function AdminPage() {
 
   const handleCreateRoom = async () => {
     if (!newRoomTitle.trim()) return alert('방 이름을 입력해주세요!');
-    const { error } = await supabase.from('rooms').insert([{ title: newRoomTitle.trim(), theme: roomTheme, part_name: loginPart }]);
-    if (error) alert('방 생성 실패: ' + error.message);
-    else { setNewRoomTitle(''); fetchRooms(); }
+    
+    // 💡 1순위: DB 직통 RPC 함수 호출 (스키마 캐시 우회)
+    const { error: rpcError } = await supabase.rpc('create_room_func', {
+      p_title: newRoomTitle.trim(),
+      p_theme: roomTheme,
+      p_part_name: loginPart
+    });
+
+    if (rpcError) {
+      // 💡 2순위: RPC 미생성 시 일반 insert로 시도
+      const { error: insertError } = await supabase.from('rooms').insert([{ 
+        title: newRoomTitle.trim(), 
+        theme: roomTheme, 
+        part_name: loginPart 
+      }]);
+      
+      if (insertError) {
+        alert('방 생성 실패: ' + insertError.message);
+      } else {
+        setNewRoomTitle('');
+        fetchRooms();
+      }
+    } else {
+      setNewRoomTitle('');
+      fetchRooms();
+    }
   };
 
   const handleDeleteRoom = async (roomId: string) => {
@@ -131,7 +158,6 @@ export default function AdminPage() {
     setIsResultModalOpen(true);
   };
 
-  // 로그인 전 화면
   if (!isLoggedIn) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-100 font-sans">
@@ -154,11 +180,8 @@ export default function AdminPage() {
     );
   }
 
-  // 로그인 후 대시보드 화면
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans print:bg-white print:text-black">
-      
-      {/* 결과 요약 모달 및 PDF 인쇄 */}
       {isResultModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 z-50 flex justify-center items-center p-6 print:p-0 print:bg-white">
           <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl print:max-h-none print:shadow-none print:w-full">
@@ -223,7 +246,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* 방 관리 패널 */}
       <div className="w-96 bg-white border-r border-slate-200 p-6 flex flex-col print:hidden">
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -255,7 +277,6 @@ export default function AdminPage() {
         </ul>
       </div>
 
-      {/* 질문 관리 패널 */}
       <div className="flex-1 p-10 bg-slate-50 overflow-y-auto print:hidden">
         {!selectedRoomId ? (
           <div className="flex items-center justify-center h-full text-slate-400 font-medium">👈 왼쪽에서 방을 선택하거나 새 방을 생성해주세요.</div>
