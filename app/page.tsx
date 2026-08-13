@@ -25,7 +25,7 @@ export default function AdminPage() {
   useEffect(() => { if (selectedRoomId) fetchQuestions(selectedRoomId); }, [selectedRoomId]);
 
   const handleLogin = () => {
-    if (password === '1234') {
+    if (password === '6114') {
       setIsLoggedIn(true);
     } else {
       alert('비밀번호가 일치하지 않습니다.');
