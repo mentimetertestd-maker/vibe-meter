@@ -25,7 +25,7 @@ export default function AdminPage() {
   useEffect(() => { if (selectedRoomId) fetchQuestions(selectedRoomId); }, [selectedRoomId]);
 
   const handleLogin = () => {
-    if (password === '6114') {
+    if (password === '1234') {
       setIsLoggedIn(true);
     } else {
       alert('비밀번호가 일치하지 않습니다.');
@@ -119,9 +119,18 @@ export default function AdminPage() {
     const newOptions = [...options]; newOptions[index] = value; setOptions(newOptions);
   };
 
+  // 💡 전광판 열기 버튼 클릭 시, 탭/주소창 없는 팝업창 모드로 꽉 차게 띄움
   const handleOpenDisplay = () => {
     if (!selectedRoomId) return alert('방을 먼저 선택해주세요!');
-    window.open(`/display/${selectedRoomId}`, '_blank');
+    
+    const width = screen.width;
+    const height = screen.height;
+    
+    window.open(
+      `/display/${selectedRoomId}`, 
+      '_blank', 
+      `toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=${width},height=${height},top=0,left=0`
+    );
   };
 
   const handleOpenResults = async () => {
